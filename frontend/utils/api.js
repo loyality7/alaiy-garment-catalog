@@ -75,8 +75,13 @@ export const triggerGrouping = async () => {
 /**
  * Trigger catalog generation
  */
-export const triggerGenerate = async () => {
-  const response = await fetch(`${API_BASE_URL}/generate`, { method: "POST" });
+export const triggerGenerate = async (groupIds = null) => {
+  const options = { method: "POST" };
+  if (groupIds) {
+    options.headers = { "Content-Type": "application/json" };
+    options.body = JSON.stringify({ group_ids: groupIds });
+  }
+  const response = await fetch(`${API_BASE_URL}/generate`, options);
   if (!response.ok) throw new Error("Generation failed");
   return response.json();
 };

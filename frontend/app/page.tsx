@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import useWebSocket from "@/hooks/useWebSocket";
 import PipelinePanel from "@/components/PipelinePanel";
 import Canvas from "@/components/Canvas";
+import FloatingToolbar from "@/components/FloatingToolbar";
 import { getWsUrl, fetchJobs, fetchGroups, moveImage } from "@/utils/api";
 
 export default function Home() {
@@ -114,6 +115,7 @@ export default function Home() {
   const handleUploadComplete = () => {
     // Jobs will arrive via WebSocket, but fetch as backup
     setTimeout(refreshJobs, 500);
+    setActiveView(null);
   };
 
   const [moveHistory, setMoveHistory] = useState([]);
@@ -158,36 +160,124 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [moveHistory, redoHistory]);
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [activeView, setActiveView] = useState(null); // 'upload', 'stats', or null
+
+  const handleTogglePanel = (view) => {
+    setActiveView(activeView === view ? null : view);
+  };
+
+  const isProcessing = useMemo(() => {
+    return Object.values(jobs).some(job => 
+      ["uploaded", "classifying", "classified", "processing"].includes(job.status)
+    );
+  }, [jobs]);
+
+  // Derive Workspaces based on upload time gaps (> 60s)
+  const [activeWorkspaceIndex, setActiveWorkspaceIndex] = useState(0);
+
+  const workspaces = useMemo(() => {
+    const allJobs = Object.values(jobs).sort((a, b) => a.created_at - b.created_at);
+    const spaces = [];
+    let currentSpace = [];
+    let lastTime = 0;
+
+    for (const job of allJobs) {
+      if (lastTime === 0 || (job.created_at - lastTime) > 60) {
+        if (currentSpace.length > 0) spaces.push(currentSpace);
+        currentSpace = [job];
+      } else {
+        currentSpace.push(job);
+      }
+      lastTime = job.created_at;
+    }
+    if (currentSpace.length > 0) spaces.push(currentSpace);
+    
+    return spaces.length > 0 ? spaces : [[]];
+  }, [jobs]);
+
+  const [prevWorkspacesLen, setPrevWorkspacesLen] = useState(0);
+
+  useEffect(() => {
+    if (workspaces.length > prevWorkspacesLen && workspaces.length > 0) {
+      // A new workspace was created (e.g. new upload batch), jump to it!
+      setActiveWorkspaceIndex(workspaces.length - 1);
+    } else if (activeWorkspaceIndex >= workspaces.length) {
+      // Workspace was deleted (e.g. reset), jump to latest available
+      setActiveWorkspaceIndex(Math.max(0, workspaces.length - 1));
+    }
+    setPrevWorkspacesLen(workspaces.length);
+  }, [workspaces.length, activeWorkspaceIndex, prevWorkspacesLen]);
+
+  // Filter jobs and groups for the active workspace
+  const activeJobs = useMemo(() => {
+    const activeList = workspaces[activeWorkspaceIndex] || [];
+    const map = {};
+    activeList.forEach(j => map[j.id] = j);
+    return map;
+  }, [workspaces, activeWorkspaceIndex]);
+
+  const activeGroups = useMemo(() => {
+    const map = {};
+    const activeJobIds = new Set(Object.keys(activeJobs));
+    
+    Object.values(groups).forEach(g => {
+      // Filter image_ids to only include images in the active workspace
+      const filteredIds = (g.image_ids || []).filter(id => activeJobIds.has(id));
+      if (filteredIds.length > 0) {
+        // Clone group with filtered image_ids
+        map[g.id] = {
+          ...g,
+          image_ids: filteredIds,
+          // Only keep slot refs if they're in this workspace
+          front_image_id: activeJobIds.has(g.front_image_id) ? g.front_image_id : null,
+          back_image_id: activeJobIds.has(g.back_image_id) ? g.back_image_id : null,
+          detail_image_id: activeJobIds.has(g.detail_image_id) ? g.detail_image_id : null,
+          spec_label_id: activeJobIds.has(g.spec_label_id) ? g.spec_label_id : null,
+        };
+      }
+    });
+    return map;
+  }, [groups, activeJobs]);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden relative bg-[var(--bg-canvas)]">
-      {/* Sidebar Container with smooth width transition */}
+      
+      {/* Floating Toolbar (Left edge) */}
+      <FloatingToolbar 
+        onTogglePanel={handleTogglePanel}
+        activeView={activeView}
+        isProcessing={isProcessing}
+      />
+
+      {/* Floating Pipeline Panel Popover */}
       <div 
-        className={`relative transition-all duration-300 ease-in-out h-full z-20 ${
-          isSidebarOpen ? "w-[300px]" : "w-0"
+        className={`absolute top-1/2 -translate-y-1/2 transition-all duration-400 ease-out z-40 ${
+          activeView ? "left-[65px] opacity-100 scale-100" : "left-[50px] opacity-0 scale-95 pointer-events-none"
         }`}
       >
-        <div className={`absolute top-0 left-0 w-[300px] h-full shadow-2xl transition-transform duration-300 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        <div className="bg-white/85 backdrop-blur-2xl shadow-[0_24px_48px_rgba(0,0,0,0.12)] border border-white/60 rounded-3xl overflow-hidden h-auto max-h-[85vh] w-[320px]">
           <PipelinePanel
             jobs={jobs}
             groups={groups}
             isConnected={isConnected}
             onUploadComplete={handleUploadComplete}
-            isSidebarOpen={isSidebarOpen}
-            onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+            activeView={activeView}
+            onToggle={() => setActiveView(null)}
           />
         </div>
       </div>
       
-      {/* Main Canvas Area */}
-      <div className="flex-1 h-full relative z-10 transition-all duration-300">
+      {/* Main Canvas Area (Full width now) */}
+      <div className="flex-1 h-full relative z-10 w-full flex flex-col">
         <Canvas
-          jobs={jobs}
-          groups={groups}
+          jobs={activeJobs}
+          groups={activeGroups}
           onDropImage={handleDropImage}
-          isSidebarOpen={isSidebarOpen}
-          onSidebarToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+          isConnected={isConnected}
+          isProcessing={isProcessing}
+          workspaces={workspaces}
+          activeWorkspaceIndex={activeWorkspaceIndex}
+          onWorkspaceChange={setActiveWorkspaceIndex}
         />
       </div>
     </div>
