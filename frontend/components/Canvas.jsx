@@ -270,7 +270,7 @@ export default function Canvas({
                 )}
               </div>
               <span className="text-inherit">WS {i + 1}</span>
-              {imgCount > 0 && <span className={`text-[9px] ${i === activeWorkspaceIndex ? 'text-white/70' : 'text-[var(--text-muted)]'}`}>{imgCount}img {groupCount}g</span>}
+              {imgCount > 0 && <span className={`text-[9px] ${i === activeWorkspaceIndex ? 'text-white/70' : 'text-[var(--text-muted)]'}`}>{imgCount} imgs · {groupCount} grps</span>}
             </button>
           );
         })}
