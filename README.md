@@ -1,67 +1,42 @@
 # Alaiy Garment Catalog
 
-An automated end-to-end system that converts raw, unstructured garment photographs into a professional PowerPoint catalog. The pipeline classifies images (front/back/detail/spec label), extracts specification data from labels, removes backgrounds, organizes images into style groups, and generates a ready-to-use catalog presentation.
+Converts raw garment photos into a ready PowerPoint catalog.
 
-## Implemented Capabilities
+## Quick Start
 
-- **Image upload** via drag-drop or file picker, with batch processing (5 files at a time)
-- **Scans input folder** for existing images and queues them automatically
-- **AI classification** of garment images into FRONT, BACK, DETAIL, and SPEC_LABEL types using Gemini 2.5 Flash
-- **Spec data extraction** from label images: reference number, fabric composition, GSM, date, remarks
-- **Image processing**: smart cropping, auto-rotation, brightness/contrast correction, resizing (background removal is disabled by default)
-- **Style grouping** using a 4-pass algorithm (timestamp proximity, fuzzy heuristic matching, AI vision confirmation)
-- **Drag-and-drop** manual correction of image-to-group assignments
-- **Classification override** via detail panel
-- **PowerPoint catalog generation** with cover slide, per-slide layouts (front/back/detail + specs), matching a reference PPT layout
-- **Real-time pipeline visibility** via WebSocket: per-image status (uploaded → classifying → classified → processing → cleaned → assigned → ppt_ready)
-- **Workspace partitioning** by upload time batches (60-second gap threshold)
-- **Undo/redo** for drag-and-drop moves (Ctrl+Z / Ctrl+Y)
-- **File organization** output: `Processed_Garments/StyleName_front.jpg`, etc.
+```bash
+docker compose up --build
+```
+
+Frontend at `http://localhost:3000`, API at `http://localhost:8000`.
+
+## What It Does
+
+1. Upload or scan garment images (front/back/detail/spec label)
+2. AI classifies each image type + extracts specs from labels
+3. Automatically crops, color-corrects, and resizes images
+4. Groups images into style groups (4-pass algorithm)
+5. Drag-drop to fix any grouping mistakes
+6. Generates a professional PowerPoint catalog
+7. Real-time status via WebSocket — no refreshing needed
 
 ## Setup
 
-### Prerequisites
-
-- Python 3.11+
-- Node.js 20+
-- Redis 7+ (or Docker)
-- A Gemini API key (or OpenRouter API key as fallback)
+**Prerequisites:** Python 3.11+, Node.js 20+, Redis 7+, Gemini API key
 
 ### Backend
 
 ```bash
 cd backend
-python -m venv venv
-venv\Scripts\activate      # Windows
 pip install -r requirements.txt
-```
-
-Copy `.env.example` to `.env` and set your API keys:
-
-```bash
-cp .env.example .env
-# Edit .env: set GEMINI_API_KEY or OPENROUTER_API_KEY
-```
-
-Start Redis (required):
-
-```bash
-# Docker:
-docker run -d -p 6379:6379 redis:7-alpine
-```
-
-Start the API server:
-
-```bash
-cd backend
+cp .env.example .env   # set GEMINI_API_KEY
 uvicorn backend.main:app --reload --port 8000
 ```
 
-Start the Celery worker in a separate terminal:
+In another terminal:
 
 ```bash
-cd backend
-celery -A backend.jobs.tasks worker --loglevel=info --concurrency=4
+celery -A backend.jobs.tasks worker --loglevel=info
 ```
 
 ### Frontend
@@ -72,64 +47,70 @@ npm install
 npm run dev
 ```
 
-The frontend runs on `http://localhost:3000` and proxies `/api/*` to `http://localhost:8000`.
-
-### Docker (All Services)
+### Docker
 
 ```bash
 docker compose up --build
 ```
 
-This starts Redis, backend (UVicorn), Celery worker, and frontend (Next.js dev server).
+Starts: Redis, backend, Celery worker, frontend.
+
+---
 
 ## Project Structure
 
 ```
-├── backend/
-│   ├── main.py              # FastAPI app — REST + WebSocket endpoints
-│   ├── models/schemas.py     # Pydantic models and enums
-│   ├── jobs/tasks.py         # Celery tasks (process, group, generate)
-│   ├── pipeline/
-│   │   ├── classifier.py     # AI garment image classifier
-│   │   ├── grouper.py        # 4-pass style grouping algorithm
-│   │   ├── image_processor.py # Background removal, crop, color correction
-│   │   ├── ocr.py            # Spec label extraction via AI
-│   │   └── ppt_generator.py  # PowerPoint catalog generation
-│   └── utils/
-│       ├── ai_client.py      # Unified AI vision client (Gemini / OpenRouter)
-│       └── file_utils.py     # File path and I/O helpers
-├── frontend/
-│   ├── app/page.tsx          # Main page with WebSocket state management
-│   ├── components/
-│   │   ├── Canvas.jsx        # Main workspace with view modes
-│   │   ├── StyleGroup.jsx    # Style group card with drop target
-│   │   ├── ImageCard.jsx     # Image thumbnail with status/type badges
-│   │   ├── UploadZone.jsx    # Drag-drop upload zone
-│   │   ├── PipelinePanel.jsx # Pipeline stats sidebar
-│   │   └── FloatingToolbar.jsx # Side toolbar
-│   ├── hooks/useWebSocket.js # WebSocket hook with auto-reconnect
-│   └── utils/api.js          # API client functions
-├── docker-compose.yml        # Full stack orchestration
-└── input/                    # Uploaded images and reference.pptx
+backend/
+├── main.py                # FastAPI — REST + WebSocket
+├── models/schemas.py      # Pydantic models
+├── jobs/tasks.py          # Celery tasks
+├── pipeline/
+│   ├── classifier.py      # AI image classification
+│   ├── grouper.py         # 4-pass style grouping
+│   ├── image_processor.py # Crop, color, resize
+│   ├── ocr.py             # Spec label extraction
+│   └── ppt_generator.py   # PowerPoint generation
+└── utils/
+    ├── ai_client.py       # Gemini / OpenRouter client
+    └── file_utils.py      # File I/O helpers
+
+frontend/
+├── app/page.tsx           # Main app with WebSocket state
+├── components/
+│   ├── Canvas.jsx         # Workspace (Groups / All / Ungrouped)
+│   ├── StyleGroup.jsx     # Group card with drop target
+│   ├── ImageCard.jsx      # Thumbnail with status badges
+│   ├── UploadZone.jsx     # Drag-drop upload
+│   ├── PipelinePanel.jsx  # Stats sidebar
+│   └── FloatingToolbar.jsx
+├── hooks/useWebSocket.js  # Auto-reconnect WebSocket
+└── utils/api.js           # API client
 ```
 
-## Development Workflow
+## Workflow
 
-1. Upload images via the frontend UI or place them in `input/images/` and use the "Scan" button
-2. Images are classified by AI (Gemini → OpenRouter fallback)
-3. Processed images are cropped, color-corrected, and optionally background-removed
-4. After all images are processed, click "Group" to run the 4-pass grouping algorithm
-5. Review groups; drag images between groups to correct assignments
-6. Click "Generate Catalog" to produce `output/Catalog.pptx`
-7. Download the PPTX file via the "Download" button
+1. **Upload** — drag-drop or file picker (5 files/batch)
+2. **Classify** — AI identifies FRONT/BACK/DETAIL/SPEC_LABEL
+3. **Process** — crop, color-correct, resize, optional background removal
+4. **Extract** — reads reference number, fabric %, GSM from spec labels
+5. **Group** — 4-pass grouping (timestamp → fuzzy → vision confirm)
+6. **Review** — drag images between groups, override types
+7. **Generate** — creates Catalog.pptx + organized image folder
+8. **Download** — exports the final PPTX
+
+## Pipeline States
+
+```
+uploaded → classifying → classified → processing → cleaned → assigned → ppt_ready
+                                                                              ↓
+                                                                        Catalog.pptx
+```
 
 ## Limitations
 
-- Background removal (`rembg`) is **disabled by default** (`REMOVE_BG=false`) due to potential quality issues
-- The "asmara" logo in the PowerPoint is rendered as styled text (no logo image file)
-- The frontend uses `.jsx` files despite TypeScript being configured
-- No automated test suite is present
-- The reference PPT (`input/reference.pptx`) is optional; if absent, default slide dimensions (13.33×7.5 inches) are used
-- The frontend does not implement a "Slide Preview before export" feature (listed as a bonus goal)
-- Output versioning is not implemented
-- There is no confirmation dialog for reclassification or grouping override (only for reset and delete)
+- Background removal disabled by default (`REMOVE_BG=false`)
+- Logo is rendered as text (no image file)
+- JSX files despite TypeScript config
+- No test suite
+- No slide preview before export
+- No output versioning

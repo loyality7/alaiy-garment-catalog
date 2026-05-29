@@ -1,221 +1,179 @@
 # API & Pipeline Design
 
-## REST Endpoints
+## Quick Reference
 
-### `POST /upload`
-Upload one or more garment images. Each file creates a job and enqueues a Celery `process_image` task.
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/upload` | Upload images → creates jobs → Celery task |
+| POST | `/scan` | Scan input folder for new images |
+| GET | `/jobs` | All job states |
+| GET | `/groups` | All style groups |
+| GET | `/stats` | Pipeline counts per stage |
+| POST | `/group` | Trigger style grouping |
+| POST | `/generate` | Trigger PPT generation |
+| GET | `/download` | Download Catalog.pptx |
+| GET | `/image/{path}` | Serve a processed image |
+| GET | `/thumbnail/{job_id}` | Job thumbnail |
+| POST | `/reset` | Delete all jobs + groups |
+| DELETE | `/job/{job_id}` | Delete one job |
+| PATCH | `/job/{job_id}/classify` | Override classification |
+| POST | `/move-image` | Move image between groups |
+| WS | `/ws` | Real-time pipeline updates |
 
-**Request:** `multipart/form-data` with `files` (array of image/* files)
-**Response (200):**
+---
+
+## Detailed Endpoints
+
+### POST /upload
+
+Upload multiple images. Each file:
+- Validated as image/* content type
+- Deduplicated by MD5 hash
+- Saved to `input/images/`
+- Creates a Redis job (status: `uploaded`)
+- Enqueues a Celery `process_image` task
+
+**Request:** `multipart/form-data` with `files`
+**Response:**
 ```json
 {
   "message": "Uploaded 3 images",
-  "jobs": [
-    {
-      "id": "uuid",
-      "filename": "DSC03826.JPG",
-      "original_path": "C:/.../input/images/DSC03826.JPG",
-      "status": "uploaded",
-      "image_type": "UNKNOWN",
-      "classification": null,
-      "style_group": null,
-      "spec_data": null,
-      "processed_path": null,
-      "error": null,
-      "created_at": 1712345678.123,
-      "updated_at": 1712345678.123
-    }
-  ]
+  "jobs": [{ "id": "uuid", "filename": "...", "status": "uploaded", ... }]
 }
 ```
-**Events published:** `job_update` per file
 
-### `POST /scan`
-Scan `input/images/` for files without associated jobs. Creates jobs and enqueues tasks.
+### POST /scan
 
-**Response (200):** `{"message": "Scanned folder and queued 5 new images", "jobs": [...]}`
-**Events published:** `job_update` per file
+Scans `input/images/` for .jpg/.jpeg/.png/.webp files not yet in Redis. Creates jobs and tasks for each.
 
-### `GET /jobs`
-Return all job states from Redis.
+### GET /jobs
 
-**Response (200):** `{"jobs": {"<job_id>": {...}, ...}}`
+Returns `{"jobs": {"<job_id>": {...}}}` — all job data from Redis hash.
 
-### `GET /groups`
-Return all style groups.
+### GET /groups
 
-**Response (200):** `{"groups": {"<group_id>": {...}, ...}}`
+Returns `{"groups": {"<group_id>": {...}}}` — all style groups from Redis.
 
-### `GET /stats`
-Return pipeline statistics: counts per stage (total, uploaded, classifying, classified, processing, cleaned, assigned, ppt_ready, failed) plus `style_groups` count.
+### GET /stats
 
-### `POST /group`
-Trigger the grouping phase. Returns a Celery task ID.
+Returns counts per stage + style group count. Stages: total, uploaded, classifying, classified, processing, cleaned, assigned, ppt_ready, failed.
 
-**Response (200):** `{"message": "Grouping started", "task_id": "uuid"}`
+### POST /group
 
-### `POST /generate`
-Trigger PowerPoint catalog generation. Optional `group_ids` to generate only specific groups.
+Runs the 4-pass grouping algorithm. Returns Celery task ID. Can also auto-trigger when all images finish processing.
 
-**Request body (optional):** `{"group_ids": ["id1", "id2"]}`
-**Response (200):** `{"message": "Catalog generation started", "task_id": "uuid"}`
+### POST /generate
 
-### `GET /download`
-Download `output/Catalog.pptx`.
+Generates Catalog.pptx. Optional `{"group_ids": [...]}` to filter which groups to include.
 
-**Response (200):** File download (Content-Type: `application/vnd.openxmlformats-officedocument.presentationml.presentation`)
-**Response (404):** If catalog not yet generated
+### GET /download
 
-### `GET /image/{path}`
-Serve a processed image by relative path. Tries output directory, then input, then absolute path.
+Serves `output/Catalog.pptx`. Returns 404 if not yet generated.
 
-### `GET /thumbnail/{job_id}`
-Serve a thumbnail for a specific job. Prefers `processed_path`, falls back to `original_path`.
+### GET /image/{path}
 
-### `POST /reset`
-Delete all jobs and style groups from Redis.
+Serves any image. Tries output → input → absolute path.
 
-**Response (200):** `{"message": "Pipeline reset"}`
-**Events published:** `pipeline_reset`
+### GET /thumbnail/{job_id}
 
-### `DELETE /job/{job_id}`
-Delete a single job, remove from style groups, delete files from disk.
+Serves a job's image. Prefers processed → original path.
 
-**Response (200):** `{"message": "Job {id} deleted"}`
-**Events published:** `job_deleted`
+### POST /reset
 
-### `PATCH /job/{job_id}/classify`
-Manually override the classification. Updates the job and associated style group slot.
+Deletes all Redis job/group keys, broadcasts `pipeline_reset` event.
 
-**Query params:** `image_type` (FRONT/BACK/DETAIL/SPEC_LABEL/UNKNOWN), optional `dominant_color`, `garment_type`, `pattern`
-**Response (200):** `{"message": "...", "job": {...}}`
-**Events published:** `job_update`, potentially `groups_update`
+### DELETE /job/{job_id}
 
-### `POST /move-image`
-Move an image to a different style group (drag-drop support).
+Removes job from Redis + group + deletes files from disk.
 
-**Query params:** `job_id`, `target_group_id`
-**Response (200):** `{"message": "Image moved", "job": {...}}`
-**Events published:** `image_moved`
+### PATCH /job/{job_id}/classify
 
-## WebSocket Endpoint
+Override `image_type` and optionally `dominant_color`, `garment_type`, `pattern`. Updates both the job and its group's slot reference.
 
-### `WS /ws`
-Real-time bidirectional communication.
+### POST /move-image
 
-**On connect:** Server sends `initial_state` with all jobs and groups.
-**Client → Server:** `"ping"` → Server responds `{"event": "pong"}`
-**Server → Client:** Events via Redis pub/sub broadcast — `job_update`, `grouping_*`, `catalog_*`, `image_moved`, `groups_update`, `job_deleted`, `pipeline_reset`, `solo_resolved`, `pong`
+Move a job between groups. Auto-assigns slot based on image_type.
 
-## Internal Pipeline Stages
+### WS /ws
 
-### Image Processing Pipeline (per-image)
+On connect: sends `initial_state` with all jobs + groups.
+Client sends `"ping"` → server responds `{"event": "pong"}`.
+Server broadcasts: `job_update`, `grouping_*`, `catalog_*`, `image_moved`, etc.
+
+---
+
+## Pipeline Stages
+
+### Per-Image State Machine
 
 ```
-uploaded → classifying → classified → processing → cleaned → (assigned) → ppt_ready
-                                                                  (grouping)   (catalog gen)
-                                                 → failed (on error, retries 2x)
+uploaded → classifying → classified → processing → cleaned
+                                                    ↓
+                                              (grouping)
+                                                    ↓
+                                              assigned → ppt_ready
+                                              (catalog gen)
 ```
 
-### State Transitions
+All states can transition to `failed` on error (2 retries for process_image).
 
-| From | To | Trigger |
-|------|----|---------|
-| (none) | uploaded | File uploaded via POST /upload or /scan |
-| uploaded | classifying | Celery worker picks up task |
-| classifying | classified | AI classification completes |
-| classified | processing | Worker begins image processing |
-| processing | cleaned | Image processing + optional OCR complete |
-| cleaned | assigned | Manual group assignment during grouping |
-| assigned | ppt_ready | Catalog generation complete |
-| any | failed | Exception in processing, retries exhausted |
+### Celery Tasks
 
-### Queue Jobs
+| Task | Retries | Steps |
+|------|---------|-------|
+| `process_image` | 2 (10s delay) | classify → process → OCR (if SPEC_LABEL) → auto-trigger grouping |
+| `run_grouping` | 0 | Load jobs → 4-pass group → store groups → emit events |
+| `generate_catalog` | 0 | Load groups → generate PPTX → organize files → emit event |
 
-#### `process_image(job_id, image_path)`
-- **Queue:** default (Celery)
-- **Max retries:** 2 (10-second delay)
-- **Steps:**
-  1. Update status to "classifying"
-  2. Call `classify_image()` → get `ClassificationResult`
-  3. Update status to "classified" with classification data
-  4. Update status to "processing"
-  5. Call `process_image()` → get processed bytes
-  6. Save processed image to `output/processed_images/`
-  7. Update status to "cleaned" with `processed_path`
-  8. If SPEC_LABEL: call `extract_spec_data()` → update `spec_data`
-  9. Check if all jobs are done; if yes, auto-trigger `run_grouping`
-- **On failure:** Updates status to "failed" with error message, retries up to 2 times
+### Grouping Algorithm (4 Passes)
 
-#### `run_grouping()`
-- **Queue:** default
-- **Steps:**
-  1. Emit `grouping_started` event
-  2. Load all jobs from Redis, convert to `ImageJob` objects
-  3. Run `group_images()` — 4-pass algorithm
-  4. Update each job's `style_group` assignment, set status to "assigned"
-  5. Store style groups in Redis
-  6. Emit `grouping_complete` with groups data
-- **On failure:** Emit `grouping_failed` with error
+| Pass | Method | What |
+|------|--------|------|
+| 1 | Timestamp gap | Sequential filenames, gap >60s = new group |
+| 1.5 | Split | Groups with multiple FRONTs/BACKs split |
+| 2 | Fuzzy heuristic | Color, garment type, pattern similarity scoring |
+| 3 | AI vision | Solo images checked against filename neighbors |
+| 4 | AI vision (optional) | Suspicious groups verified by vision model |
 
-#### `generate_catalog(group_ids=None)`
-- **Queue:** default
-- **Steps:**
-  1. Emit `catalog_started` event
-  2. Load jobs and style groups from Redis
-  3. Optionally filter by `group_ids`
-  4. Convert to model objects
-  5. Call `ppt_generator.generate_catalog()`
-  6. Call `organize_output_files()` → copy to `Processed_Garments/`
-  7. Update all jobs to "ppt_ready"
-  8. Emit `catalog_complete` with output path
-- **On failure:** Emit `catalog_failed` with error
+---
 
-### Event Lifecycle
+## Event Sequence
 
 ```
-  Client                     FastAPI                    Redis                Celery Worker
-    │                          │                         │                       │
-    │── WS /ws ───────────────>│                         │                       │
-    │<── initial_state ────────│                         │                       │
-    │                          │                         │                       │
-    │── POST /upload ─────────>│                         │                       │
-    │                          │── HSET jobs ───────────>│                       │
-    │                          │── PUBLISH ws_events ───>│                       │
-    │                          │── task.delay() ────────>│── broker ────────────>│
-    │                          │                         │                       │
-    │<── job_update (uploaded)─│<── broadcast ──────────│                       │
-    │                          │                         │                       │
-    │                          │                         │<── poll ───────────── │
-    │                          │                         │                       │── classify()
-    │                          │<── broadcast ──────────│<── PUBLISH ws_events ──│
-    │<── job_update (classified)                         │                       │
-    │                          │                         │                       │── process()
-    │                          │<── broadcast ──────────│<── PUBLISH ws_events ──│
-    │<── job_update (cleaned)──│                         │                       │
-    │                          │                         │                       │── auto-trigger grouping
-    │                          │                         │<── broker ───────────│
-    │                          │                         │<── poll ──────────────│── group_images()
-    │                          │<── broadcast ──────────│<── PUBLISH ws_events ──│
-    │<── grouping_complete ────│                         │                       │
-    │                          │                         │                       │
-    │── POST /generate ───────>│                         │                       │
-    │                          │── task.delay() ────────>│── broker ────────────>│
-    │                          │                         │<── poll ──────────────│── generate_ppt()
-    │                          │<── broadcast ──────────│<── PUBLISH ws_events ──│
-    │<── catalog_complete ─────│                         │                       │
-    │                          │                         │                       │
-    │── GET /download ────────>│                         │                       │
-    │<── Catalog.pptx ─────────│                         │                       │
+Client          FastAPI         Redis           Celery
+  |               |               |               |
+  |-- WS /ws ---->|               |               |
+  |<-- init_state-|               |               |
+  |               |               |               |
+  |-- POST upload>|-- HSET job -->|               |
+  |               |-- PUBLISH --->|               |
+  |               |-- task.delay->|-- broker ---->|
+  |               |               |               |-- classify()
+  |<-- job_update |<-- broadcast <|<- PUBLISH ----|
+  |               |               |               |-- process()
+  |<-- job_update |<-- broadcast <|<- PUBLISH ----|
+  |               |               |               |-- auto-group
+  |               |               |<-- broker ----|
+  |               |               |               |-- group_images()
+  |<-- group_done |<-- broadcast <|<- PUBLISH ----|
+  |               |               |               |
+  |-- POST gen --->|-- task.delay>|-- broker ---->|
+  |               |               |               |-- generate_ppt()
+  |<-- catalog_ok |<-- broadcast <|<- PUBLISH ----|
+  |               |               |               |
+  |-- GET downl-->|-- serve file->|               |
+  |<-- Catalog.pptx               |               |
 ```
 
-### Error Handling
+## Error Handling
 
-- **AI provider failure:** `ai_client.py` retries across providers (Gemini → OpenRouter). If both fail, raises exception.
-- **Classification failure:** `classifier.py` retries up to 3 attempts. If all fail, raises exception → worker catches → updates job to "failed" → Celery retries the task (2 retries, 10s delay).
-- **Grouping failure:** Exception caught, `grouping_failed` event emitted, task not retried.
-- **Catalog generation failure:** Exception caught, `catalog_failed` event emitted, task not retried.
-- **WebSocket disconnect:** ConnectionManager removes dead connections during broadcast. Client-side auto-reconnects after 3 seconds.
-- **Duplicate file uploads:** Content-based deduplication via MD5 hash. If same file already exists, reuses existing file without re-saving.
-- **Missing catalog:** Returns 404 with `"Catalog not yet generated"`.
-- **Missing image:** Returns 404 with `"Image not found"`.
+| Scenario | Behavior |
+|----------|----------|
+| AI provider down | Retries Gemini → OpenRouter, both fail → fails task |
+| Classification fails | 3 retries → task `failed` status → 2 more Celery retries |
+| Grouping fails | Emits `grouping_failed`, no retry |
+| PPT generation fails | Emits `catalog_failed`, no retry |
+| WebSocket disconnect | Server silently removes, client reconnects in 3s |
+| Duplicate file upload | MD5 dedup — reuses existing file |
+| Catalog not found | Returns 404 |
+| Image not found | Returns 404 |
