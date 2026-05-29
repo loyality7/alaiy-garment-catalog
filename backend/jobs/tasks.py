@@ -278,7 +278,7 @@ def run_grouping(self):
             jobs[jid] = job
 
         # Run grouping
-        style_groups = _run_async(group_images(jobs))
+        style_groups = _run_async(group_images(jobs, emit_event=_emit_ws_event))
 
         # Update job assignments
         for jid, job in jobs.items():

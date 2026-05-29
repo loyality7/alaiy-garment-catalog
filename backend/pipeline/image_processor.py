@@ -20,16 +20,15 @@ SQUARE_SIZE = (800, 800)     # Detail shots
 SPEC_SIZE = (1000, 700)      # Spec labels
 
 
-def remove_background(image_bytes: bytes) -> Image.Image:
+def remove_background(image: Image.Image) -> Image.Image:
     """
     Step 1: Remove background using rembg and place on clean white background.
     rembg uses U2Net model to detect and remove backgrounds safely.
     """
     logger.info("Step 1: Removing background...")
 
-    # Remove background - returns RGBA image
-    output_bytes = remove(image_bytes)
-    fg_image = Image.open(io.BytesIO(output_bytes)).convert("RGBA")
+    # Remove background - returns RGBA image if passed a PIL Image
+    fg_image = remove(image).convert("RGBA")
 
     # Create clean white background
     white_bg = Image.new("RGBA", fg_image.size, (255, 255, 255, 255))
@@ -218,18 +217,18 @@ def process_image(image_path: str, image_type: ImageType) -> bytes:
     """
     logger.info(f"Processing image: {image_path} (type: {image_type.value})")
 
-    # Load original image
-    with open(image_path, "rb") as f:
-        image_bytes = f.read()
+    # Load original image and apply EXIF orientation immediately!
+    original = Image.open(image_path)
+    original = ImageOps.exif_transpose(original).convert("RGB")
 
     # Step 1: Background removal (skip for spec labels, or if REMOVE_BG is false)
     import os
     remove_bg_enabled = os.getenv("REMOVE_BG", "false").lower() == "true"
     
     if image_type != ImageType.SPEC_LABEL and remove_bg_enabled:
-        image = remove_background(image_bytes)
+        image = remove_background(original)
     else:
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        image = original
 
     # Step 2: Auto-deskew
     image = auto_deskew(image)

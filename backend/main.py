@@ -18,6 +18,11 @@ import logging
 import time
 import uuid
 from pathlib import Path
+import sys
+
+# Ensure project root is in python path so 'backend.xyz' absolute imports work
+# no matter which directory uvicorn is started from.
+sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 from typing import List, Dict
 from contextlib import asynccontextmanager
 
@@ -33,8 +38,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-INPUT_DIR = os.getenv("INPUT_DIR", "./input/images")
-OUTPUT_DIR = os.getenv("OUTPUT_DIR", "./output")
+PROJECT_ROOT = Path(__file__).parent.parent.absolute()
+INPUT_DIR = str(PROJECT_ROOT / os.getenv("INPUT_DIR", "input/images").lstrip("./\\"))
+OUTPUT_DIR = str(PROJECT_ROOT / os.getenv("OUTPUT_DIR", "output").lstrip("./\\"))
 
 # ── WebSocket connection manager ──
 class ConnectionManager:
@@ -404,9 +410,16 @@ async def get_thumbnail(job_id: str):
     job = json.loads(raw)
 
     # Prefer processed image, fall back to original
-    image_path = job.get("processed_path") or job.get("original_path")
-    if not image_path or not Path(image_path).exists():
-        raise HTTPException(status_code=404, detail="Image file not found")
+    image_path_raw = job.get("processed_path") or job.get("original_path")
+    if not image_path_raw:
+        raise HTTPException(status_code=404, detail="Image path not in job")
+
+    image_path = Path(image_path_raw)
+    if not image_path.is_absolute():
+        image_path = PROJECT_ROOT / image_path
+
+    if not image_path.exists():
+        raise HTTPException(status_code=404, detail="Image file not found on disk")
 
     return FileResponse(str(image_path))
 

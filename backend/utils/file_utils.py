@@ -11,9 +11,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-INPUT_DIR = os.getenv("INPUT_DIR", "./input/images")
-OUTPUT_DIR = os.getenv("OUTPUT_DIR", "./output")
-REFERENCE_PPT = os.getenv("REFERENCE_PPT", "./input/reference.pptx")
+PROJECT_ROOT = Path(__file__).parent.parent.parent.absolute()
+INPUT_DIR = str(PROJECT_ROOT / os.getenv("INPUT_DIR", "input/images").lstrip("./\\"))
+OUTPUT_DIR = str(PROJECT_ROOT / os.getenv("OUTPUT_DIR", "output").lstrip("./\\"))
+REFERENCE_PPT = str(PROJECT_ROOT / os.getenv("REFERENCE_PPT", "input/reference.pptx").lstrip("./\\"))
 
 
 def get_input_dir() -> Path:
