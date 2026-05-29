@@ -68,8 +68,8 @@ So always classify zoomed-in shots as DETAIL regardless of what garment it shows
 
 == METADATA EXTRACTION ==
 dominant_color: Most prominent fabric color. If stripes exist, name the base fabric color not the stripe color.
-garment_type: Exact type only: "polo shirt", "t-shirt", "overshirt", "pants", "jacket". Do NOT invent terms.
-pattern: Exact pattern: "solid", "striped", "ribbed knit", "textured knit", "checkered", "printed graphic"
+garment_type: Identify the exact garment type you see (e.g. "polo shirt", "t-shirt", "overshirt", "pants", "jacket", "hoodie", "kurta", "dress", "skirt", "shorts", etc.). Be specific and accurate.
+pattern: Identify the exact pattern (e.g. "solid", "striped", "checkered", "plaid", "floral", "printed graphic", "ribbed knit", "textured knit", "paisley", "abstract", "geometric", "camo", etc.). Be specific.
 style_name: Concise name combining color + pattern + type. Example: "Navy Blue Solid Polo Shirt"
 confidence: 
   - 0.9-1.0: You are certain. Image is clear and unambiguous.

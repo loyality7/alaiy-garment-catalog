@@ -142,8 +142,8 @@
 **Limitations:**
 - Background removal (`REMOVE_BG=false` by default) — disabled due to quality concerns
 - Deskew step was removed ("incorrectly rotates striped/ribbed garments based on fabric patterns")
-- No orientation correction for DETAIL or SPEC_LABEL types
-- Fixed 1000px max dimension (not configurable)
+- No orientation correction for DETAIL type
+- Max dimension configurable via `MAX_IMAGE_DIM` env var (default 1000px)
 
 ---
 

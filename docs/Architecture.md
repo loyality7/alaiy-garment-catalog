@@ -143,7 +143,7 @@ graph TB
 | Module | File | Role |
 |--------|------|------|
 | Classifier | `pipeline/classifier.py` | Sends image to Gemini API with a detailed classification prompt. Retries up to 3 times. Resizes images to max 1024px for API efficiency. Parses JSON response into `ClassificationResult`. |
-| Image Processor | `pipeline/image_processor.py` | 5-step processing pipeline: (1) background removal via rembg (disabled by default), (2) auto-rotation of landscape garment images, (3) smart cropping via OpenCV contour detection, (4) brightness/contrast histogram correction, (5) max-dimension resize to 1000px. |
+| Image Processor | `pipeline/image_processor.py` | 5-step processing pipeline: (1) background removal via rembg (disabled by default), (2) auto-rotation of landscape garment images, (3) smart cropping via OpenCV contour detection, (4) brightness/contrast histogram correction, (5) resize (configurable via `MAX_IMAGE_DIM`, default 1000px). |
 | OCR | `pipeline/ocr.py` | Sends spec label images to AI with extraction prompt. Higher resolution (1536px max). Returns `SpecData` with ref_number, fabric_composition, gsm, date, remarks. |
 | Grouper | `pipeline/grouper.py` | 4-pass grouping algorithm: Pass 1 (Timestamp Gap), Pass 1.5 (Split Overloaded), Pass 2 (Heuristic Fuzzy), Pass 3 (AI Vision Solos), Pass 4 (AI Vision Suspicious). |
 | PPT Generator | `pipeline/ppt_generator.py` | Creates PowerPoint using python-pptx. Loads reference PPT for dimensions if available. Generates a cover slide and per-style slides with dark header, cream body, front/back/detail images in framed positions, spec data panel, and footer. |

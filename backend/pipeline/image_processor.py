@@ -1,5 +1,5 @@
 """
-Image processing pipeline: background removal, deskew, crop, brightness/contrast, resize.
+Image processing pipeline: background removal, deskew (spec labels only), crop, brightness/contrast, resize.
 Each step is separate and non-destructive.
 """
 
@@ -14,10 +14,15 @@ from backend.models.schemas import ImageType
 
 logger = logging.getLogger(__name__)
 
+import os
+
 # Target sizes
 PORTRAIT_SIZE = (800, 1100)  # Front/Back views
 SQUARE_SIZE = (800, 800)     # Detail shots
 SPEC_SIZE = (1000, 700)      # Spec labels
+
+# Configurable max output dimension
+MAX_IMAGE_DIM = int(os.getenv("MAX_IMAGE_DIM", "1000"))
 
 
 def remove_background(image: Image.Image) -> Image.Image:
@@ -187,7 +192,7 @@ def resize_to_format(image: Image.Image) -> Image.Image:
     """
     logger.info("Step 5: Resizing image (no padding)...")
     
-    max_size = 1000
+    max_size = MAX_IMAGE_DIM
     img_w, img_h = image.size
     
     if max(img_w, img_h) > max_size:
@@ -226,8 +231,10 @@ def process_image(image_path: str, image_type: ImageType) -> bytes:
         logger.info(f"Raw image is landscape ({image.width}x{image.height}). Auto-rotating by -90 degrees.")
         image = image.rotate(-90, expand=True, fillcolor=(255, 255, 255))
 
-    # Removed auto_deskew because it incorrectly rotates striped/ribbed garments (like polo shirts) 
-    # based on fabric patterns instead of the true horizon.
+    # Step 2b: Deskew — only for SPEC_LABEL (paper tags shot at an angle).
+    # Disabled for garments because Hough lines detect fabric stripes/ribs as tilt.
+    if image_type == ImageType.SPEC_LABEL:
+        image = auto_deskew(image)
 
     # Step 3: Smart crop (will also catch sideways bounding boxes if raw wasn't landscape)
     image = smart_crop(image)
