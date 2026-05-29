@@ -194,13 +194,9 @@ uploaded → classifying → classified → processing → cleaned → assigned 
 
 ---
 
-## Limitations
+## Current State & Known Issues
 
-- Background removal (`rembg`) is **disabled by default** (`REMOVE_BG=false`) due to potential quality issues
-- The "asmara" logo in the PowerPoint is rendered as styled text (no logo image file)
-- The frontend uses `.jsx` files despite TypeScript being configured
+- The "asmara" logo in the PowerPoint is rendered as styled text (no logo image file is provided)
 - No automated test suite is present
-- The reference PPT (`input/reference.pptx`) is optional; if absent, default slide dimensions (13.33×7.5 inches) are used
-- The frontend does not implement a "Slide Preview before export" feature (listed as a bonus goal)
-- Output versioning is not implemented
+- Output versioning is not implemented (repeated generations overwrite the previous `Catalog.pptx`)
 - There is no confirmation dialog for reclassification or grouping override (only for reset and delete)
