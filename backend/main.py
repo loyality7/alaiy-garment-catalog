@@ -23,7 +23,8 @@ import sys
 # Ensure project root is in python path so 'backend.xyz' absolute imports work
 # no matter which directory uvicorn is started from.
 sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
-from typing import List, Dict
+from typing import List, Dict, Optional
+from pydantic import BaseModel
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, UploadFile, File, WebSocket, WebSocketDisconnect, HTTPException
@@ -361,11 +362,16 @@ async def trigger_grouping():
     return {"message": "Grouping started", "task_id": task.id}
 
 
+class GenerateRequest(BaseModel):
+    group_ids: Optional[List[str]] = None
+
 @app.post("/generate")
-async def trigger_catalog_generation():
+async def trigger_catalog_generation(req: GenerateRequest = None):
     """Trigger PowerPoint catalog generation."""
     from backend.jobs.tasks import generate_catalog
-    task = generate_catalog.delay()
+    
+    group_ids = req.group_ids if req else None
+    task = generate_catalog.delay(group_ids)
     return {"message": "Catalog generation started", "task_id": task.id}
 
 
@@ -505,6 +511,34 @@ async def override_classification(job_id: str, image_type: str, dominant_color: 
 
     job["updated_at"] = time.time()
     r.hset("jobs", job_id, json.dumps(job))
+
+    # Also update the StyleGroup so PPT generator sees the new slot
+    group_id = job.get("style_group")
+    if group_id:
+        groups_raw = r.get("style_groups")
+        if groups_raw:
+            groups = json.loads(groups_raw)
+            if group_id in groups:
+                group = groups[group_id]
+                # Remove job_id from any old slots
+                for slot in ["front_image_id", "back_image_id", "detail_image_id", "spec_label_id"]:
+                    if group.get(slot) == job_id:
+                        group[slot] = None
+                
+                # Add to new slot
+                if image_type == "FRONT":
+                    group["front_image_id"] = job_id
+                elif image_type == "BACK":
+                    group["back_image_id"] = job_id
+                elif image_type == "DETAIL":
+                    group["detail_image_id"] = job_id
+                elif image_type == "SPEC_LABEL":
+                    group["spec_label_id"] = job_id
+                    
+                r.set("style_groups", json.dumps(groups))
+                # Emit groups update
+                event = {"event": "groups_update", "data": groups, "timestamp": time.time()}
+                r.publish("ws_events", json.dumps(event))
 
     event = {"event": "job_update", "job_id": job_id, "data": job, "timestamp": time.time()}
     r.publish("ws_events", json.dumps(event))

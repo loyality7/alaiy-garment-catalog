@@ -318,7 +318,7 @@ def run_grouping(self):
 
 
 @celery_app.task(bind=True)
-def generate_catalog(self):
+def generate_catalog(self, group_ids: list = None):
     """
     Generate the final PowerPoint catalog from style groups.
     Called after grouping is complete.
@@ -333,6 +333,9 @@ def generate_catalog(self):
         # Load jobs and groups
         all_jobs_raw = _get_all_jobs()
         groups_raw = _get_style_groups()
+        
+        if group_ids is not None:
+            groups_raw = {k: v for k, v in groups_raw.items() if k in group_ids}
 
         # Convert to model objects
         jobs = {}
