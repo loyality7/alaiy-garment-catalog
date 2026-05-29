@@ -115,7 +115,7 @@ graph TB
 
 ---
 
-## Frontend — Detailed
+## Frontend
 
 | Component | File | Role |
 |-----------|------|------|
@@ -131,7 +131,7 @@ graph TB
 
 ---
 
-## Backend — Detailed
+## Backend
 
 | Layer | File | Purpose |
 |-------|------|---------|
@@ -152,7 +152,7 @@ graph TB
 
 ---
 
-## Queue / Worker Architecture (Detailed)
+## Queue / Worker Architecture
 
 Celery with Redis broker:
 
@@ -164,7 +164,7 @@ Celery with Redis broker:
 
 ---
 
-## Data Flow (Detailed)
+## Data Flow
 
 1. **Ingestion:** Images uploaded via `POST /upload` or scanned via `POST /scan` → saved to `input/images/` → job created in Redis → Celery task enqueued → event published via Redis pub/sub → FastAPI listener broadcasts to WebSocket clients.
 
@@ -178,7 +178,7 @@ Celery with Redis broker:
 
 ---
 
-## Event Flow (Detailed)
+## Event Flow
 
 All state changes emit JSON events via Redis pub/sub channel `ws_events`:
 
@@ -200,7 +200,7 @@ All state changes emit JSON events via Redis pub/sub channel `ws_events`:
 
 ---
 
-## Storage Architecture (Detailed)
+## Storage Architecture
 
 - **Redis** is the primary state store:
   - Hash `jobs`: Keyed by job UUID, stores full job JSON

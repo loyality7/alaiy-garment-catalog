@@ -22,7 +22,7 @@
 
 ---
 
-## Frontend — Detailed
+## Frontend
 
 | Dependency | Version | Role | Where Used |
 |-----------|---------|------|------------|
@@ -33,7 +33,7 @@
 | Geist Fonts | — | Typography | `layout.tsx` via next/font/google |
 | LineIcons | 1.0.6 | SVG icons | Toolbar + action buttons |
 
-## Backend — Detailed
+## Backend
 
 | Library | Version | Role | Where Used |
 |---------|---------|------|------------|
@@ -48,7 +48,7 @@
 | aiofiles | 24.1.0 | Async file I/O | Listed in requirements, not used in code |
 | websockets | 12.0 | WebSocket support | Required by FastAPI's WebSocket implementation |
 
-## Image Processing — Detailed
+## Image Processing
 
 | Library | Version | Role | Where Used |
 |---------|---------|------|------------|
@@ -57,7 +57,7 @@
 | rembg | 2.0 | Background removal using U²Net model | `image_processor.py` — disabled by default (`REMOVE_BG=false`) |
 | ONNX Runtime | 1.19 | Model runtime for rembg / U²Net inference | Required dependency of rembg |
 
-## AI Integration — Detailed
+## AI Integration
 
 All routing via `ai_client.py` — tries Gemini, falls back to OpenRouter.
 
@@ -81,7 +81,7 @@ Google's fast, cost-effective vision-language model with native image understand
 
 Provides access to multiple models through a single API. Used as backup when Gemini API is unavailable, ensuring pipeline reliability.
 
-## Infrastructure — Detailed
+## Infrastructure
 
 | Component | Image | Config | Purpose |
 |-----------|-------|--------|---------|

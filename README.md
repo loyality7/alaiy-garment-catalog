@@ -143,7 +143,7 @@ uploaded → classifying → classified → processing → cleaned → assigned 
 
 ---
 
-## Implemented Capabilities (Detailed)
+## Implemented Capabilities
 
 - **Image upload** via drag-drop or file picker, with batch processing (5 files at a time)
 - **Scans input folder** for existing images and queues them automatically
@@ -161,7 +161,7 @@ uploaded → classifying → classified → processing → cleaned → assigned 
 
 ---
 
-## File Structure Explained (Detailed)
+## File Structure Explained
 
 ### Backend
 

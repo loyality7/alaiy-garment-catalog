@@ -174,7 +174,7 @@ uploaded → classifying → classified → processing → cleaned → (assigned
 
 ---
 
-## Queue Jobs (Detailed)
+## Queue Jobs
 
 ### process_image(job_id, image_path)
 

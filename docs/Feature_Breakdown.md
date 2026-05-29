@@ -19,7 +19,7 @@
 
 ---
 
-## Detailed Breakdown
+## Breakdown
 
 ### 1. Image Upload with Batch Processing
 
