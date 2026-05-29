@@ -93,7 +93,6 @@
 
 **Limitations:**
 - Relies entirely on AI; no fallback heuristic classification
-- Classification prompt includes style-specific rules (polo shirts, etc.) that may not generalize
 
 ---
 
