@@ -75,6 +75,7 @@ class StyleGroup(BaseModel):
     dominant_color: str = ""
     garment_type: str = ""
     pattern: str = ""
+    is_heuristic: bool = False
     image_ids: List[str] = Field(default_factory=list)
     front_image_id: Optional[str] = None
     back_image_id: Optional[str] = None
