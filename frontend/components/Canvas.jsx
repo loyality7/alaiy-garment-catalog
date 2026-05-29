@@ -175,11 +175,6 @@ export default function Canvas({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 mr-2 rounded-lg bg-black/5 text-xs text-black/70 font-semibold">
-            <span>{allJobs.length} images</span>
-            <span className="text-black/30">&bull;</span>
-            <span>{sortedGroups.length} groups</span>
-          </div>
           <button
             onClick={handleScan}
             disabled={isScanning || isProcessing}
