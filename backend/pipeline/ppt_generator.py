@@ -15,6 +15,7 @@ from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE
+from PIL import Image
 
 from backend.models.schemas import StyleGroup, ImageJob, SpecData
 from backend.utils.file_utils import get_catalog_output_path, get_reference_ppt
@@ -35,6 +36,79 @@ DARK_TEXT = RGBColor(0x4A, 0x45, 0x3D)         # Dark text for specs
 ACCENT_RED = RGBColor(0xC4, 0x3E, 0x3E)       # Asmara logo red
 LINE_COLOR = RGBColor(0x8A, 0x84, 0x7C)       # Subtle line color
 BODY_BG = RGBColor(0xF5, 0xF0, 0xE8)          # Cream body background
+
+
+def _add_centered_picture(slide, img_path: str, box_left, box_top, box_width, box_height) -> None:
+    """Helper to add an image to a slide while preserving aspect ratio and centering it within a box."""
+    try:
+        with Image.open(img_path) as img:
+            img_w, img_h = img.size
+    except Exception as e:
+        logger.error(f"Failed to read image {img_path} for PPT size calculation: {e}")
+        return
+
+    # Calculate scaling to fit within the target box
+    ratio = min(box_width / img_w, box_height / img_h)
+    target_w = img_w * ratio
+    target_h = img_h * ratio
+    
+    # Calculate centered position
+    final_left = box_left + (box_width - target_w) / 2
+    final_top = box_top + (box_height - target_h) / 2
+    
+    slide.shapes.add_picture(img_path, int(final_left), int(final_top), int(target_w), int(target_h))
+
+def _add_framed_picture(slide, img_path: str, box_left, box_top, box_width, box_height, label_text: str = None) -> float:
+    """Adds an image with a tight-fitting thin border frame. Returns the bottom position of the frame."""
+    try:
+        with Image.open(img_path) as img:
+            img_w, img_h = img.size
+    except Exception as e:
+        logger.error(f"Failed to read image {img_path} for frame calculation: {e}")
+        _add_centered_picture(slide, img_path, box_left, box_top, box_width, box_height)
+        return box_top + box_height
+
+    ratio = min(box_width / img_w, box_height / img_h)
+    actual_w = int(img_w * ratio)
+    actual_h = int(img_h * ratio)
+    
+    img_left = box_left + (box_width - actual_w) / 2
+    img_top_pos = box_top + (box_height - actual_h) / 2
+
+    border_pad = Inches(0.05)
+    frame = slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE,
+        int(img_left - border_pad),
+        int(img_top_pos - border_pad),
+        int(actual_w + border_pad * 2),
+        int(actual_h + border_pad * 2)
+    )
+    frame.fill.solid()
+    frame.fill.fore_color.rgb = BODY_BG
+    frame.line.color.rgb = LIGHT_GREY
+    frame.line.width = Pt(1)
+
+    slide.shapes.add_picture(img_path, int(img_left), int(img_top_pos), int(actual_w), int(actual_h))
+    
+    bottom_pos = img_top_pos + actual_h + border_pad
+
+    # Add label below if provided
+    if label_text:
+        label_box = slide.shapes.add_textbox(
+            int(img_left - border_pad), int(bottom_pos + Inches(0.05)),
+            int(actual_w + border_pad * 2), Inches(0.25)
+        )
+        tf = label_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = label_text
+        p.font.size = Pt(9)
+        p.font.color.rgb = DARK_TEXT
+        p.alignment = PP_ALIGN.CENTER
+        p.font.name = "Arial"
+        
+        bottom_pos += Inches(0.3)
+
+    return bottom_pos
 
 
 def _add_cover_slide(prs: Presentation, total_styles: int) -> None:
@@ -59,7 +133,7 @@ def _add_cover_slide(prs: Presentation, total_styles: int) -> None:
     p.font.bold = True
 
     # Main title: ELEMENTS
-    title_box = slide.shapes.add_textbox(Inches(1.5), Inches(2.0), Inches(6), Inches(2.5))
+    title_box = slide.shapes.add_textbox(Inches(1.5), Inches(2.0), Inches(10), Inches(2.5))
     tf = title_box.text_frame
     tf.word_wrap = True
     p = tf.paragraphs[0]
@@ -123,11 +197,16 @@ def _add_style_slide(
     slide_layout = prs.slide_layouts[6]  # Blank layout
     slide = prs.slides.add_slide(slide_layout)
 
-    # ── Background ──
+    # ── Background (Cover baked-in layout shapes) ──
     bg = slide.background
     fill = bg.fill
     fill.solid()
     fill.fore_color.rgb = BODY_BG
+    
+    cover = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, SLIDE_WIDTH, SLIDE_HEIGHT)
+    cover.fill.solid()
+    cover.fill.fore_color.rgb = BODY_BG
+    cover.line.fill.background()
 
     # ── Header bar (dark strip at top) ──
     header = slide.shapes.add_shape(
@@ -159,7 +238,7 @@ def _add_style_slide(
     # Style name
     spec_data = group.spec_data or SpecData()
     style_title = group.name.upper() if group.name else f"STYLE {slide_number}"
-    name_box = slide.shapes.add_textbox(Inches(1.6), Inches(0.08), Inches(7), Inches(0.45))
+    name_box = slide.shapes.add_textbox(Inches(1.6), Inches(0.08), Inches(9.5), Inches(0.45))
     tf = name_box.text_frame
     p = tf.paragraphs[0]
     p.text = style_title
@@ -179,7 +258,7 @@ def _add_style_slide(
         subtitle_parts.append(f"{gsm_val} GSM")
 
     subtitle_text = "  ·  ".join(subtitle_parts) if subtitle_parts else ""
-    sub_box = slide.shapes.add_textbox(Inches(1.6), Inches(0.50), Inches(7), Inches(0.3))
+    sub_box = slide.shapes.add_textbox(Inches(1.6), Inches(0.50), Inches(9.5), Inches(0.3))
     tf = sub_box.text_frame
     p = tf.paragraphs[0]
     p.text = subtitle_text
@@ -192,100 +271,38 @@ def _add_style_slide(
     img_top = Inches(1.1)
     img_height = Inches(5.0)
 
-    # Front image (left) — with grey border frame
+    # Front image (left)
     if group.front_image_id and group.front_image_id in jobs:
         front_job = jobs[group.front_image_id]
         img_path = front_job.processed_path or front_job.original_path
         if os.path.exists(img_path):
-            # Grey border frame
-            frame = slide.shapes.add_shape(
-                MSO_SHAPE.RECTANGLE, Inches(0.5), img_top - Inches(0.05),
-                Inches(3.8), img_height + Inches(0.4)
+            _add_framed_picture(
+                slide, img_path, Inches(0.5), img_top, Inches(3.8), img_height, label_text="F R O N T"
             )
-            frame.fill.solid()
-            frame.fill.fore_color.rgb = LIGHT_GREY
-            frame.line.fill.background()
-
-            slide.shapes.add_picture(
-                img_path, Inches(0.6), img_top,
-                Inches(3.6), img_height
-            )
-
-            # "FRONT" label
-            label_box = slide.shapes.add_textbox(
-                Inches(0.5), img_top + img_height + Inches(0.15), Inches(3.8), Inches(0.3)
-            )
-            tf = label_box.text_frame
-            p = tf.paragraphs[0]
-            p.text = "F R O N T"
-            p.font.size = Pt(9)
-            p.font.color.rgb = DARK_TEXT
-            p.alignment = PP_ALIGN.CENTER
-            p.font.name = "Arial"
 
     # Back image (center)
     if group.back_image_id and group.back_image_id in jobs:
         back_job = jobs[group.back_image_id]
         img_path = back_job.processed_path or back_job.original_path
         if os.path.exists(img_path):
-            frame = slide.shapes.add_shape(
-                MSO_SHAPE.RECTANGLE, Inches(4.5), img_top - Inches(0.05),
-                Inches(3.8), img_height + Inches(0.4)
+            _add_framed_picture(
+                slide, img_path, Inches(4.5), img_top, Inches(3.8), img_height, label_text="B A C K"
             )
-            frame.fill.solid()
-            frame.fill.fore_color.rgb = LIGHT_GREY
-            frame.line.fill.background()
-
-            slide.shapes.add_picture(
-                img_path, Inches(4.6), img_top,
-                Inches(3.6), img_height
-            )
-
-            label_box = slide.shapes.add_textbox(
-                Inches(4.5), img_top + img_height + Inches(0.15), Inches(3.8), Inches(0.3)
-            )
-            tf = label_box.text_frame
-            p = tf.paragraphs[0]
-            p.text = "B A C K"
-            p.font.size = Pt(9)
-            p.font.color.rgb = DARK_TEXT
-            p.alignment = PP_ALIGN.CENTER
-            p.font.name = "Arial"
 
     # Detail image (top right)
     detail_top = img_top
     detail_height = Inches(2.5)
+    detail_bottom = detail_top + detail_height  # default if no detail image
     if group.detail_image_id and group.detail_image_id in jobs:
         detail_job = jobs[group.detail_image_id]
         img_path = detail_job.processed_path or detail_job.original_path
         if os.path.exists(img_path):
-            frame = slide.shapes.add_shape(
-                MSO_SHAPE.RECTANGLE, Inches(8.6), detail_top - Inches(0.05),
-                Inches(4.3), detail_height + Inches(0.1)
+            detail_bottom = _add_framed_picture(
+                slide, img_path, Inches(8.65), detail_top, Inches(4.2), detail_height
             )
-            frame.fill.solid()
-            frame.fill.fore_color.rgb = LIGHT_GREY
-            frame.line.fill.background()
-
-            slide.shapes.add_picture(
-                img_path, Inches(8.7), detail_top,
-                Inches(4.1), detail_height
-            )
-
-            label_box = slide.shapes.add_textbox(
-                Inches(8.6), detail_top + detail_height + Inches(0.05),
-                Inches(4.3), Inches(0.25)
-            )
-            tf = label_box.text_frame
-            p = tf.paragraphs[0]
-            p.text = "D E T A I L"
-            p.font.size = Pt(9)
-            p.font.color.rgb = DARK_TEXT
-            p.alignment = PP_ALIGN.CENTER
-            p.font.name = "Arial"
 
     # ── Spec data panel (right side, below detail image) ──
-    spec_top = detail_top + detail_height + Inches(0.5)
+    spec_top = detail_bottom + Inches(0.8)
 
     spec_fields = [
         ("REF", spec_data.ref_number),
@@ -395,13 +412,26 @@ def generate_catalog(
 
     # Sort groups by style number
     sorted_groups = sorted(style_groups.values(), key=lambda g: g.style_number)
-    total_styles = len(sorted_groups)
+
+    # Auto-merge orphaned Spec Labels into the previous slide if it is missing spec data
+    merged_groups = []
+    for g in sorted_groups:
+        has_images = g.front_image_id or g.back_image_id or g.detail_image_id
+        if not has_images and g.spec_label_id and merged_groups:
+            prev_g = merged_groups[-1]
+            if not prev_g.spec_label_id:
+                prev_g.spec_label_id = g.spec_label_id
+                prev_g.spec_data = g.spec_data
+                continue  # skip adding this empty group as a separate slide
+        merged_groups.append(g)
+
+    total_styles = len(merged_groups)
 
     # Cover slide
     _add_cover_slide(prs, total_styles)
 
     # Style slides
-    for idx, group in enumerate(sorted_groups, 1):
+    for idx, group in enumerate(merged_groups, 1):
         _add_style_slide(prs, group, jobs, idx, total_styles)
 
     # Save
