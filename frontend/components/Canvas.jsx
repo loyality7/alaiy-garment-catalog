@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import StyleGroup from "./StyleGroup";
 import ImageCard from "./ImageCard";
-import { getThumbnailUrl, deleteJob, overrideClassification, triggerGrouping, triggerGenerate, getDownloadUrl, scanInputFolder, resetPipeline } from "../utils/api";
+import { getThumbnailUrl, deleteJob, overrideClassification, triggerGrouping, triggerGenerate, getDownloadUrl, scanInputFolder, resetPipeline, fetchPreview } from "../utils/api";
 
 /**
  * Canvas — main workspace area that displays style groups as clusters
@@ -27,6 +27,9 @@ export default function Canvas({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGrouping, setIsGrouping] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [overrideForm, setOverrideForm] = useState(null);
+  const [previewSlides, setPreviewSlides] = useState(null);
+  useEffect(() => { setOverrideForm(null); }, [selectedJob?.id]);
 
   // Compute stats for button disabled states
   const stats = useMemo(() => {
@@ -44,6 +47,13 @@ export default function Canvas({
     try { await triggerGrouping(); } 
     catch (err) { console.error("Grouping error:", err); } 
     finally { setTimeout(() => setIsGrouping(false), 2000); }
+  };
+
+  const handlePreview = async () => {
+    try {
+      const data = await fetchPreview();
+      setPreviewSlides(data.slides || []);
+    } catch (err) { console.error("Preview error:", err); }
   };
 
   const handleGenerate = async () => {
@@ -196,6 +206,14 @@ export default function Canvas({
             )}
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
             {isGrouping ? "Grouping..." : "Group"}
+          </button>
+          <button
+            onClick={handlePreview}
+            disabled={sortedGroups.length === 0}
+            className="px-3 py-1.5 text-xs font-semibold rounded-md border border-[var(--border)] bg-white text-black hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+            Preview
           </button>
           <button
             onClick={handleGenerate}
@@ -384,22 +402,19 @@ export default function Canvas({
 
 
 
-            {/* Reclassify (Moved Up) */}
+            {/* Override Classification */}
             {selectedJob.classification && (
               <div className="mb-4 pb-4 border-b border-[var(--border)]">
-                <label className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2 block">Override Type</label>
-                <div className="flex flex-wrap gap-1.5">
+                <label className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2 block">Override Classification</label>
+
+                {/* Type selector */}
+                <div className="flex flex-wrap gap-1.5 mb-3">
                   {["FRONT", "BACK", "DETAIL", "SPEC_LABEL"].map((t) => (
                     <button
                       key={t}
-                      onClick={async () => {
-                        try {
-                          await overrideClassification(selectedJob.id, { image_type: t });
-                          setSelectedJob(prev => ({ ...prev, image_type: t }));
-                        } catch (e) { console.error(e); }
-                      }}
+                      onClick={() => setOverrideForm(prev => ({ ...prev, image_type: t }))}
                       className={`px-2.5 py-1 rounded-md text-[10px] font-semibold border transition-colors cursor-pointer ${
-                        selectedJob.image_type === t
+                        (overrideForm?.image_type || selectedJob.image_type) === t
                           ? "bg-[var(--accent)] text-white border-[var(--accent)]"
                           : "bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] shadow-sm"
                       }`}
@@ -408,6 +423,69 @@ export default function Canvas({
                     </button>
                   ))}
                 </div>
+
+                {/* Field inputs */}
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Color</label>
+                    <input
+                      type="text"
+                      defaultValue={selectedJob.classification?.dominant_color || ""}
+                      onChange={e => setOverrideForm(prev => ({ ...prev, dominant_color: e.target.value }))}
+                      placeholder="e.g. Navy Blue"
+                      className="w-full mt-0.5 px-2 py-1 rounded-md border border-[var(--border)] bg-white text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Garment Type</label>
+                    <input
+                      type="text"
+                      defaultValue={selectedJob.classification?.garment_type || ""}
+                      onChange={e => setOverrideForm(prev => ({ ...prev, garment_type: e.target.value }))}
+                      placeholder="e.g. polo shirt"
+                      className="w-full mt-0.5 px-2 py-1 rounded-md border border-[var(--border)] bg-white text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Pattern</label>
+                    <input
+                      type="text"
+                      defaultValue={selectedJob.classification?.pattern || ""}
+                      onChange={e => setOverrideForm(prev => ({ ...prev, pattern: e.target.value }))}
+                      placeholder="e.g. solid"
+                      className="w-full mt-0.5 px-2 py-1 rounded-md border border-[var(--border)] bg-white text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                    />
+                  </div>
+                </div>
+
+                {/* Save button */}
+                <button
+                  onClick={async () => {
+                    if (!confirm("Apply classification override?")) return;
+                    try {
+                      await overrideClassification(selectedJob.id, {
+                        image_type: overrideForm?.image_type || selectedJob.image_type,
+                        dominant_color: overrideForm?.dominant_color || selectedJob.classification?.dominant_color,
+                        garment_type: overrideForm?.garment_type || selectedJob.classification?.garment_type,
+                        pattern: overrideForm?.pattern || selectedJob.classification?.pattern,
+                      });
+                      setSelectedJob(prev => ({
+                        ...prev,
+                        image_type: overrideForm?.image_type || prev.image_type,
+                        classification: {
+                          ...prev.classification,
+                          image_type: overrideForm?.image_type || prev.classification?.image_type,
+                          dominant_color: overrideForm?.dominant_color || prev.classification?.dominant_color,
+                          garment_type: overrideForm?.garment_type || prev.classification?.garment_type,
+                          pattern: overrideForm?.pattern || prev.classification?.pattern,
+                        }
+                      }));
+                    } catch (e) { console.error(e); }
+                  }}
+                  className="w-full mt-3 py-1.5 text-[11px] font-semibold rounded-md bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors cursor-pointer"
+                >
+                  Save Override
+                </button>
               </div>
             )}
 
@@ -492,6 +570,72 @@ export default function Canvas({
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                   Delete Image
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preview Modal */}
+      {previewSlides && (
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-8 pb-8 bg-black/50 overflow-y-auto" onClick={() => setPreviewSlides(null)}>
+          <div className="w-full max-w-4xl mx-auto" onClick={e => e.stopPropagation()}>
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+                <div>
+                  <h2 className="text-base font-bold text-[var(--text-primary)]">Catalog Preview</h2>
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5">{previewSlides.length} slide{previewSlides.length !== 1 ? "s" : ""}</p>
+                </div>
+                <button onClick={() => setPreviewSlides(null)} className="w-7 h-7 rounded-lg bg-[var(--error)]/10 border border-[var(--error)]/20 flex items-center justify-center text-[var(--error)] hover:bg-[var(--error)] hover:text-white transition-colors cursor-pointer text-xs">
+                  ✕
+                </button>
+              </div>
+
+              {/* Slides grid */}
+              <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto">
+                {previewSlides.map((slide, i) => (
+                  <div key={i} className="bg-white rounded-lg border border-[var(--border)] overflow-hidden shadow-sm">
+                    <div className="px-3 py-2 bg-[var(--bg-primary)] border-b border-[var(--border)] flex items-center justify-between">
+                      <span className="text-xs font-bold text-[var(--text-primary)]">#{slide.style_number}</span>
+                      <span className="text-[10px] text-[var(--text-muted)]">Slide {i + 1}</span>
+                    </div>
+                    {slide.style_name && (
+                      <div className="px-3 py-1.5 text-xs text-[var(--text-primary)] font-medium border-b border-[var(--border)]">{slide.style_name}</div>
+                    )}
+                    <div className="p-3 grid grid-cols-2 gap-2">
+                      {["front", "back", "detail", "spec_label"].filter(s => slide.slots[s]).map(slot => (
+                        <div key={slot} className="text-center">
+                          <div className="aspect-[3/4] bg-[var(--bg-primary)] rounded-md overflow-hidden border border-[var(--border)] mb-1">
+                            <img
+                              src={slide.slots[slot].thumbnail_url}
+                              alt={slot}
+                              className="w-full h-full object-contain"
+                              onError={e => { e.target.style.display = "none"; }}
+                            />
+                          </div>
+                          <span className="text-[9px] uppercase tracking-wider text-[var(--text-muted)]">{slot.replace("_", " ")}</span>
+                          {slide.slots[slot].dominant_color && (
+                            <div className="text-[8px] text-[var(--text-muted)] truncate">{slide.slots[slot].dominant_color}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[var(--border)]">
+                <button onClick={() => setPreviewSlides(null)} className="px-4 py-1.5 text-xs font-semibold rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer">
+                  Close
+                </button>
+                <button
+                  onClick={() => { setPreviewSlides(null); handleGenerate(); }}
+                  className="px-4 py-1.5 text-xs font-semibold rounded-md bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors cursor-pointer"
+                >
+                  Generate Catalog
                 </button>
               </div>
             </div>

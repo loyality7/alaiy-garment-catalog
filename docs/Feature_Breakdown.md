@@ -233,8 +233,7 @@
 **Outputs:** Updated job JSON
 
 **Limitations:**
-- Only image_type can be overridden from the UI; other fields require direct API calls
-- No confirmation prompt before override
+- None
 
 ---
 
@@ -271,7 +270,6 @@
 - Logo is text ("asmara") rendered with red styling; no actual logo image file included
 - Reference PPT is optional; if missing, default 13.333×7.5 inch dimensions are used
 - Spec data panel may be empty if no spec label was assigned to the group
-- No slide preview before generation
 - No output versioning
 
 ---

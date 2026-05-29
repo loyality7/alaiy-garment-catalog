@@ -86,6 +86,12 @@ export const triggerGenerate = async (groupIds = null) => {
   return response.json();
 };
 
+export const fetchPreview = async () => {
+  const response = await fetch(`${API_BASE_URL}/preview`);
+  if (!response.ok) throw new Error("Failed to fetch preview");
+  return response.json();
+};
+
 /**
  * Move image between groups
  */

@@ -10,6 +10,7 @@
 | GET | `/groups` | All style groups |
 | GET | `/stats` | Pipeline counts per stage |
 | POST | `/group` | Trigger style grouping |
+| GET | `/preview` | Preview catalog slides before generation |
 | POST | `/generate` | Trigger PPT generation |
 | GET | `/download` | Download Catalog.pptx |
 | GET | `/image/{path}` | Serve a processed image |
@@ -85,6 +86,30 @@ Return pipeline statistics: counts per stage (total, uploaded, classifying, clas
 Trigger the grouping phase. Returns a Celery task ID.
 
 **Response (200):** `{"message": "Grouping started", "task_id": "uuid"}`
+
+### GET /preview
+
+Returns slide-by-slide preview data showing what the catalog will contain, without triggering generation. Groups are sorted and orphan spec-label groups are auto-merged (same logic as actual generation).
+
+**Response (200):**
+```json
+{
+  "slides": [
+    {
+      "style_number": 1,
+      "style_name": "Style Name",
+      "dominant_color": "Navy Blue",
+      "slots": {
+        "front": { "job_id": "...", "filename": "...", "image_type": "FRONT", "thumbnail_url": "/thumbnail/..." },
+        "back": { ... },
+        "detail": { ... },
+        "spec_label": { ... }
+      }
+    }
+  ],
+  "total": 6
+}
+```
 
 ### POST /generate
 

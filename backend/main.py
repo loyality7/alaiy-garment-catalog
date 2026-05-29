@@ -375,6 +375,63 @@ async def trigger_catalog_generation(req: GenerateRequest = None):
     return {"message": "Catalog generation started", "task_id": task.id}
 
 
+@app.get("/preview")
+async def preview_catalog():
+    """Return slide-by-slide preview of what the catalog will contain."""
+    r = get_sync_redis()
+
+    groups_raw = r.get("style_groups")
+    if not groups_raw:
+        return {"slides": []}
+    groups = json.loads(groups_raw)
+
+    all_jobs = r.hgetall("jobs")
+    jobs = {k: json.loads(v) for k, v in all_jobs.items()}
+
+    sorted_groups = sorted(groups.values(), key=lambda g: g.get("style_number", 0))
+
+    # Mirror ppt_generator auto-merge: orphan spec-only groups merge into previous
+    merged = []
+    for g in sorted_groups:
+        has_images = g.get("front_image_id") or g.get("back_image_id") or g.get("detail_image_id")
+        if not has_images and g.get("spec_label_id") and merged:
+            prev = merged[-1]
+            if not prev.get("spec_label_id"):
+                prev["spec_label_id"] = g["spec_label_id"]
+                prev["spec_data"] = g.get("spec_data")
+                continue
+        merged.append(g)
+
+    # Build slides array with thumbnail URLs
+    slides = []
+    for g in merged:
+        slots = {}
+        for slot in ["front_image_id", "back_image_id", "detail_image_id", "spec_label_id"]:
+            jid = g.get(slot)
+            if jid and jid in jobs:
+                job = jobs[jid]
+                slots[slot.replace("_image_id", "").replace("_id", "")] = {
+                    "job_id": jid,
+                    "filename": job.get("filename", ""),
+                    "image_type": job.get("image_type"),
+                    "dominant_color": job.get("classification", {}).get("dominant_color"),
+                    "garment_type": job.get("classification", {}).get("garment_type"),
+                    "pattern": job.get("classification", {}).get("pattern"),
+                    "thumbnail_url": f"/thumbnail/{jid}",
+                }
+
+        slides.append({
+            "style_number": g.get("style_number", 0),
+            "style_name": g.get("name", ""),
+            "dominant_color": g.get("dominant_color", ""),
+            "garment_type": g.get("garment_type", ""),
+            "pattern": g.get("pattern", ""),
+            "slots": slots,
+        })
+
+    return {"slides": slides, "total": len(slides)}
+
+
 @app.get("/download")
 async def download_catalog():
     """Download the generated Catalog.pptx."""
