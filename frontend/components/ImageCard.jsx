@@ -105,7 +105,7 @@ export default function ImageCard({ job, onClick, draggable = false, onDragStart
   return (
     <div
       className={`image-card relative rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--bg-card)] transition-all duration-200 ${
-        isActive ? "processing-ring" : "hover:border-[var(--text-secondary)] hover:shadow-md"
+        isActive ? "processing-scan" : "hover:border-[var(--text-secondary)] hover:shadow-md"
       } ${draggable ? "cursor-grab active:cursor-grabbing hover:-translate-y-1" : ""}`}
       style={{ width: "100%" }}
       onClick={() => onClick?.(job)}

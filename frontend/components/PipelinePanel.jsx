@@ -10,7 +10,7 @@ import { triggerGrouping, triggerGenerate, getDownloadUrl, resetPipeline, scanIn
  *
  * @param {{ jobs: object, groups: object, isConnected: boolean, onUploadComplete?: function }} props
  */
-export default function PipelinePanel({ jobs, groups, isConnected, onUploadComplete, onToggle }) {
+export default function PipelinePanel({ jobs, groups, isConnected, onUploadComplete, onToggle, activeView = "stats" }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGrouping, setIsGrouping] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -108,13 +108,13 @@ export default function PipelinePanel({ jobs, groups, isConnected, onUploadCompl
   };
 
   return (
-    <aside className="w-[300px] h-full flex flex-col border-r border-[var(--border)] bg-[var(--bg-primary)] overflow-y-auto">
+    <aside className="w-full h-full flex flex-col bg-transparent overflow-y-auto">
       {/* Header */}
       <div className="p-4 pb-3 border-b border-[var(--border)]">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <h1 className="text-base font-bold text-[var(--text-primary)]">
-              Garment Catalog
+              {activeView === "upload" ? "Upload Images" : "Pipeline Stats"}
             </h1>
           </div>
           <div className="flex items-center gap-3">
@@ -130,33 +130,33 @@ export default function PipelinePanel({ jobs, groups, isConnected, onUploadCompl
               <button 
                 onClick={onToggle}
                 className="p-1 hover:bg-[var(--bg-surface)] rounded text-[var(--text-muted)] transition-colors"
-                title="Collapse Panel"
+                title="Close"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             )}
           </div>
         </div>
-        <p className="text-[11px] text-[var(--text-muted)]">
-          Alaiy Automated Pipeline
-        </p>
       </div>
 
-      {/* Upload zone */}
-      <div className="p-4 border-b border-[var(--border)]">
-        <UploadZone onUploadComplete={onUploadComplete} />
-      </div>
+      {activeView === "upload" && (
+        <div className="p-4 flex-1">
+          <UploadZone onUploadComplete={onUploadComplete} />
+        </div>
+      )}
 
-      {/* Pipeline stages */}
-      <div className="p-4 border-b border-[var(--border)]">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+      {activeView === "stats" && (
+        <>
+          {/* Pipeline stages */}
+          <div className="p-4 border-b border-[var(--border)]">
+            <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-bold text-black uppercase tracking-wider">
             Pipeline
           </h2>
           {stats.total > 0 && (
-            <span className="text-[11px] text-[var(--text-muted)] font-mono">
+            <span className="text-[11px] text-black/60 font-mono font-bold">
               {progressPct}%
             </span>
           )}
@@ -182,10 +182,10 @@ export default function PipelinePanel({ jobs, groups, isConnected, onUploadCompl
           {stages.map((stage) => (
             <div
               key={stage.key}
-              className={`flex items-center justify-between py-1.5 px-2 rounded-lg text-xs transition-colors ${
+              className={`flex items-center justify-between py-1.5 px-2 rounded-lg text-xs transition-colors font-medium ${
                 stage.count > 0
-                  ? "bg-[var(--bg-card)] text-[var(--text-primary)]"
-                  : "text-[var(--text-muted)]"
+                  ? "bg-black/5 text-black font-bold"
+                  : "text-black/60"
               }`}
             >
               <div className="flex items-center gap-2">
@@ -207,7 +207,7 @@ export default function PipelinePanel({ jobs, groups, isConnected, onUploadCompl
       {/* Style groups count */}
       <div className="p-4 border-b border-[var(--border)]">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+          <h2 className="text-xs font-bold text-black uppercase tracking-wider">
             Style Groups
           </h2>
           <span className="text-lg font-bold text-[var(--accent)] font-mono">
@@ -216,6 +216,8 @@ export default function PipelinePanel({ jobs, groups, isConnected, onUploadCompl
         </div>
       </div>
 
+        </>
+      )}
     </aside>
   );
 }

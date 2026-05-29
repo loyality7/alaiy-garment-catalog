@@ -11,7 +11,16 @@ import { getThumbnailUrl, deleteJob, overrideClassification, triggerGrouping, tr
  *
  * @param {{ jobs: object, groups: object, onDropImage?: function }} props
  */
-export default function Canvas({ jobs, groups, onDropImage, isSidebarOpen, onSidebarToggle }) {
+export default function Canvas({ 
+  jobs, 
+  groups, 
+  onDropImage, 
+  isConnected, 
+  isProcessing,
+  workspaces = [],
+  activeWorkspaceIndex = 0,
+  onWorkspaceChange 
+}) {
   const [selectedJob, setSelectedJob] = useState(null);
   const [viewMode, setViewMode] = useState("groups"); // "groups" | "all" | "ungrouped"
 
@@ -39,7 +48,10 @@ export default function Canvas({ jobs, groups, onDropImage, isSidebarOpen, onSid
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    try { await triggerGenerate(); } 
+    try { 
+      const groupIds = sortedGroups.map(g => g.id);
+      await triggerGenerate(groupIds); 
+    } 
     catch (err) { console.error("Generation error:", err); } 
     finally { setTimeout(() => setIsGenerating(false), 3000); }
   };
@@ -95,26 +107,20 @@ export default function Canvas({ jobs, groups, onDropImage, isSidebarOpen, onSid
   return (
     <div className="flex-1 h-full flex flex-col overflow-hidden canvas-grid">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)] bg-[var(--bg-primary)] relative z-20 shadow-sm">
-        <div className="flex items-center gap-3">
-          {!isSidebarOpen && (
-            <button 
-              onClick={onSidebarToggle}
-              className="p-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] shadow-sm hover:bg-[var(--bg-secondary)] transition-all flex items-center justify-center cursor-pointer"
-              title="Open Pipeline Panel"
-            >
-              <svg className="w-4 h-4 text-[var(--text-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-          )}
-          <div className="flex items-baseline gap-3">
-            <h2 className="text-sm font-semibold text-[var(--text-primary)] m-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-black/10 bg-[var(--bg-primary)] relative z-20 shadow-sm">
+        <div className="flex items-center gap-6">
+          <div className="flex items-baseline gap-4">
+            <h2 className="text-lg font-bold text-[var(--text-primary)] m-0">
               Workspace
             </h2>
-            <span className="text-[11px] text-[var(--text-muted)] font-mono">
-              {allJobs.length} images · {sortedGroups.length} groups
-            </span>
+            <div className="flex items-center gap-1.5 ml-2">
+              <span
+                className={`w-2 h-2 rounded-full ${isConnected ? "bg-[var(--success)] shadow-[0_0_8px_var(--success)]" : "bg-[var(--error)] shadow-[0_0_8px_var(--error)]"}`}
+              />
+              <span className="text-[10px] text-black/60 font-semibold tracking-wider uppercase">
+                {isConnected ? "Online" : "Offline"}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -125,7 +131,7 @@ export default function Canvas({ jobs, groups, onDropImage, isSidebarOpen, onSid
             className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-2 ${
               viewMode === "groups"
                 ? "bg-white text-[var(--accent)] shadow-sm"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]"
+                : "text-black hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]"
             }`}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
@@ -136,7 +142,7 @@ export default function Canvas({ jobs, groups, onDropImage, isSidebarOpen, onSid
             className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-2 ${
               viewMode === "all"
                 ? "bg-white text-[var(--info)] shadow-sm"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]"
+                : "text-black hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]"
             }`}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
@@ -147,7 +153,7 @@ export default function Canvas({ jobs, groups, onDropImage, isSidebarOpen, onSid
             className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-2 ${
               viewMode === "ungrouped"
                 ? "bg-white text-[var(--error)] shadow-sm"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]"
+                : "text-black hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]"
             }`}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -159,20 +165,35 @@ export default function Canvas({ jobs, groups, onDropImage, isSidebarOpen, onSid
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 mr-2 rounded-lg bg-black/5 text-xs text-black/70 font-semibold">
+            <span>{allJobs.length} images</span>
+            <span className="text-black/30">&bull;</span>
+            <span>{sortedGroups.length} groups</span>
+          </div>
           <button
             onClick={handleScan}
-            disabled={isScanning}
-            className="px-3 py-1.5 text-xs font-semibold rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50 flex items-center gap-1.5"
+            disabled={isScanning || isProcessing}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md border border-[var(--border)] transition-colors flex items-center gap-1.5 shadow-sm ${isScanning || isProcessing ? "bg-black/5 text-black/40 cursor-not-allowed opacity-50" : "bg-white text-black hover:border-[var(--accent)] hover:text-[var(--accent)]"}`}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
-            {isScanning ? "Scanning..." : "Scan"}
+            {isScanning ? "Scanning..." : isProcessing ? "Processing..." : "Scan"}
           </button>
           <button
             onClick={handleGroup}
             disabled={isGrouping || stats.cleaned === 0}
-            className="px-3 py-1.5 text-xs font-semibold rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50 flex items-center gap-1.5"
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md border transition-all disabled:opacity-50 flex items-center gap-1.5 relative ${
+              stats.cleaned > 0
+                ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)] shadow-[0_0_12px_rgba(236,72,153,0.4)]"
+                : "border-[var(--border)] bg-white text-black hover:border-[var(--accent)] hover:text-[var(--accent)] shadow-sm"
+            }`}
           >
+            {stats.cleaned > 0 && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[var(--accent)] rounded-full animate-ping" />
+            )}
+            {stats.cleaned > 0 && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[var(--accent)] rounded-full" />
+            )}
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
             {isGrouping ? "Grouping..." : "Group"}
           </button>
@@ -196,7 +217,7 @@ export default function Canvas({ jobs, groups, onDropImage, isSidebarOpen, onSid
           {Object.keys(jobs).length > 0 && (
             <button
               onClick={handleReset}
-              className="flex flex-col items-center justify-center px-3 py-1 text-[var(--text-muted)] hover:text-[var(--error)] hover:bg-[var(--error)]/10 rounded-lg transition-colors"
+              className="flex flex-col items-center justify-center px-3 py-1 text-black hover:text-[var(--error)] hover:bg-[var(--error)]/10 rounded-lg transition-colors"
               title="Reset Pipeline"
             >
               <svg className="w-4 h-4 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -206,18 +227,38 @@ export default function Canvas({ jobs, groups, onDropImage, isSidebarOpen, onSid
         </div>
       </div>
 
+      {/* Workspace Tabs (Below Header) */}
+      {workspaces.length > 1 && (
+        <div className="w-full bg-[var(--bg-canvas)] border-b border-black/5 px-6 py-2 flex items-center justify-start gap-2 overflow-x-auto relative z-10 shadow-sm pl-[65px]">
+          <span className="text-[10px] font-bold text-[var(--text-muted)] mr-2 tracking-widest uppercase">Workspaces:</span>
+          {workspaces.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => onWorkspaceChange && onWorkspaceChange(i)}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 whitespace-nowrap ${
+                i === activeWorkspaceIndex 
+                  ? 'bg-[var(--accent)] text-white shadow-[0_4px_10px_rgba(236,72,153,0.2)]' 
+                  : 'bg-white border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
+              }`}
+            >
+              Workspace {i + 1}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Content area */}
-      <div className="flex-1 overflow-y-auto p-5">
+      <div className="flex-1 overflow-y-auto pl-[65px] pr-8 py-6 relative">
         {allJobs.length === 0 ? (
           /* Empty state */
           <div className="h-full flex flex-col items-center justify-center text-center">
-            <div className="text-[var(--border)] mb-4">
+            <div className="text-black/20 mb-4">
               <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
             </div>
-            <h3 className="text-lg font-semibold text-[var(--text-secondary)] mb-2">
+            <h3 className="text-lg font-semibold text-black mb-2">
               No images yet
             </h3>
-            <p className="text-sm text-[var(--text-muted)] max-w-md">
+            <p className="text-sm text-black/70 max-w-md">
               Upload garment images using the panel on the left. They&apos;ll appear here
               as they&apos;re processed and grouped into styles.
             </p>
@@ -317,7 +358,7 @@ export default function Canvas({ jobs, groups, onDropImage, isSidebarOpen, onSid
 
       {/* Detail panel (slides in when an image is selected) */}
       {selectedJob && (
-        <div className="absolute top-0 right-0 w-[380px] h-full bg-[var(--bg-secondary)] border-l border-[var(--border)] shadow-2xl overflow-y-auto animate-slide-in z-50">
+        <div className="absolute top-0 right-0 w-[320px] h-full bg-[var(--bg-secondary)] border-l border-[var(--border)] shadow-2xl overflow-y-auto animate-slide-in z-50">
           <div className="p-5">
             {/* Close button */}
             <div className="flex items-center justify-between mb-4">
@@ -326,7 +367,7 @@ export default function Canvas({ jobs, groups, onDropImage, isSidebarOpen, onSid
               </h3>
               <button
                 onClick={() => setSelectedJob(null)}
-                className="w-7 h-7 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer text-xs shadow-sm"
+                className="w-7 h-7 rounded-lg bg-[var(--error)]/10 border border-[var(--error)]/20 flex items-center justify-center text-[var(--error)] hover:bg-[var(--error)] hover:text-white transition-colors cursor-pointer text-xs shadow-sm"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
@@ -337,9 +378,38 @@ export default function Canvas({ jobs, groups, onDropImage, isSidebarOpen, onSid
               <img
                 src={getThumbnailUrl(selectedJob.id)}
                 alt={selectedJob.filename}
-                className="w-full h-auto object-contain max-h-[300px]"
+                className="w-full h-auto object-contain max-h-[160px]"
               />
             </div>
+
+
+
+            {/* Reclassify (Moved Up) */}
+            {selectedJob.classification && (
+              <div className="mb-4 pb-4 border-b border-[var(--border)]">
+                <label className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2 block">Override Type</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {["FRONT", "BACK", "DETAIL", "SPEC_LABEL"].map((t) => (
+                    <button
+                      key={t}
+                      onClick={async () => {
+                        try {
+                          await overrideClassification(selectedJob.id, { image_type: t });
+                          setSelectedJob(prev => ({ ...prev, image_type: t }));
+                        } catch (e) { console.error(e); }
+                      }}
+                      className={`px-2.5 py-1 rounded-md text-[10px] font-semibold border transition-colors cursor-pointer ${
+                        selectedJob.image_type === t
+                          ? "bg-[var(--accent)] text-white border-[var(--accent)]"
+                          : "bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] shadow-sm"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Info */}
             <div className="space-y-3">
@@ -406,31 +476,6 @@ export default function Canvas({ jobs, groups, onDropImage, isSidebarOpen, onSid
                 </div>
               )}
 
-              {/* Reclassify */}
-              {selectedJob.classification && (
-                <div className="pt-3 border-t border-[var(--border)]">
-                  <label className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2 block">Override Type</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {["FRONT", "BACK", "DETAIL", "SPEC_LABEL"].map((t) => (
-                      <button
-                        key={t}
-                        onClick={async () => {
-                          try {
-                            await overrideClassification(selectedJob.id, { image_type: t });
-                          } catch (e) { console.error(e); }
-                        }}
-                        className={`px-2.5 py-1 rounded-md text-[10px] font-semibold border transition-colors cursor-pointer ${
-                          selectedJob.image_type === t
-                            ? "bg-[var(--accent)] text-white border-[var(--accent)]"
-                            : "bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                        }`}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Delete */}
               <div className="pt-3">
