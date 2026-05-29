@@ -60,9 +60,9 @@ The grouper handles that using filename proximity.
 So always classify zoomed-in shots as DETAIL regardless of what garment it shows.
 
 == COMMON MISTAKES TO AVOID ==
-- A back view showing only a folded collar and no buttons = BACK (not FRONT)
+- CRITICAL: A view showing the back of a folded collar with NO buttons/placket visible = BACK.
+- If it's a polo shirt and you do NOT see the front button placket = BACK.
 - A close-up of the collar area = DETAIL (not FRONT)
-- A back view with no buttons = BACK (not FRONT)  
 - A hangtag with text = SPEC_LABEL (not DETAIL)
 - Solid colored shirt with shadow = still "solid" pattern
 

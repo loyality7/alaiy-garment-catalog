@@ -375,8 +375,8 @@ async def trigger_catalog_generation(req: GenerateRequest = None):
     return {"message": "Catalog generation started", "task_id": task.id}
 
 
-@app.get("/preview")
-async def preview_catalog():
+@app.post("/preview")
+async def preview_catalog(req: GenerateRequest = None):
     """Return slide-by-slide preview of what the catalog will contain."""
     r = get_sync_redis()
 
@@ -384,6 +384,10 @@ async def preview_catalog():
     if not groups_raw:
         return {"slides": []}
     groups = json.loads(groups_raw)
+
+    group_ids = req.group_ids if req else None
+    if group_ids is not None:
+        groups = {k: v for k, v in groups.items() if k in group_ids}
 
     all_jobs = r.hgetall("jobs")
     jobs = {k: json.loads(v) for k, v in all_jobs.items()}

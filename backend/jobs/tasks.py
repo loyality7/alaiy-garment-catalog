@@ -218,11 +218,14 @@ def process_image(self, job_id: str, image_path: str):
             j.get("status") in pending_statuses for j in all_jobs.values()
         )
         if not still_pending and len(all_jobs) > 1:
-            # Check if grouping hasn't already been done
-            existing_groups = _get_style_groups()
-            if not existing_groups:
-                logger.info("All images processed — auto-triggering grouping...")
-                run_grouping.delay()
+            # Use Redis lock to prevent race condition (two workers both triggering grouping)
+            r = get_redis()
+            lock_acquired = r.set("grouping_lock", "1", nx=True, ex=30)  # 30s expiry
+            if lock_acquired:
+                existing_groups = _get_style_groups()
+                if not existing_groups:
+                    logger.info("All images processed — auto-triggering grouping...")
+                    run_grouping.delay()
 
         return {"job_id": job_id, "status": "cleaned"}
 

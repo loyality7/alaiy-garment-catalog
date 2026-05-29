@@ -174,6 +174,7 @@ export default function Home() {
 
   // Derive Workspaces based on upload time gaps (> 60s)
   const [activeWorkspaceIndex, setActiveWorkspaceIndex] = useState(0);
+  const [manualWorkspaceCount, setManualWorkspaceCount] = useState(0);
 
   const workspaces = useMemo(() => {
     const allJobs = Object.values(jobs).sort((a, b) => a.created_at - b.created_at);
@@ -192,8 +193,14 @@ export default function Home() {
     }
     if (currentSpace.length > 0) spaces.push(currentSpace);
     
-    return spaces.length > 0 ? spaces : [[]];
-  }, [jobs]);
+    const baseSpaces = spaces.length > 0 ? spaces : [[]];
+
+    // Append manually created workspaces
+    for (let i = 0; i < manualWorkspaceCount; i++) {
+      baseSpaces.push([]);
+    }
+    return baseSpaces;
+  }, [jobs, manualWorkspaceCount]);
 
   const [prevWorkspacesLen, setPrevWorkspacesLen] = useState(0);
 
@@ -278,6 +285,7 @@ export default function Home() {
           workspaces={workspaces}
           activeWorkspaceIndex={activeWorkspaceIndex}
           onWorkspaceChange={setActiveWorkspaceIndex}
+          onAddWorkspace={() => setManualWorkspaceCount(c => c + 1)}
         />
       </div>
     </div>

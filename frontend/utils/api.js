@@ -86,8 +86,13 @@ export const triggerGenerate = async (groupIds = null) => {
   return response.json();
 };
 
-export const fetchPreview = async () => {
-  const response = await fetch(`${API_BASE_URL}/preview`);
+export const fetchPreview = async (groupIds = null) => {
+  const options = { method: "POST" };
+  if (groupIds) {
+    options.headers = { "Content-Type": "application/json" };
+    options.body = JSON.stringify({ group_ids: groupIds });
+  }
+  const response = await fetch(`${API_BASE_URL}/preview`, options);
   if (!response.ok) throw new Error("Failed to fetch preview");
   return response.json();
 };

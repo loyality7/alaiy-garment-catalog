@@ -204,6 +204,10 @@ async def _vision_confirm_solos(solo_groups: list, all_jobs: Dict, style_groups:
             response = await call_vision_model(prompt, grid_b64)
             data = parse_json_response(response)
             
+            # Handle both list and dict responses
+            if isinstance(data, list):
+                data = data[0] if data else {}
+            
             # Merge solo into matched group
             matched_filenames = data.get("belongs_with", [])
             for filename in matched_filenames:
@@ -278,6 +282,10 @@ async def _vision_confirm_groups(suspicious_groups: list, solo_groups: list, all
         try:
             response = await call_vision_model(prompt, grid_b64)
             data = parse_json_response(response)
+            
+            # Handle both list and dict responses
+            if isinstance(data, list):
+                data = data[0] if data else {}
             
             if data.get("remove"):
                 for fname in data.get("remove"):
@@ -370,12 +378,12 @@ async def group_images(jobs: Dict[str, ImageJob], emit_event=None) -> Dict[str, 
         emit_event("grouping_pass1_complete", data={"groups": len(style_groups)})
 
     # --- PASS 1.5: Split Overloaded Groups ---
-    # A group cannot have multiple FRONTs or multiple BACKs.
+    # A group cannot have more than 2 FRONTs or 2 BACKs.
     for gid, group in list(style_groups.items()):
         # Check if overloaded
         types = [jobs[jid].image_type for jid in group.image_ids if jid in jobs]
-        if types.count(ImageType.FRONT) > 1 or types.count(ImageType.BACK) > 1:
-            # Split into chunks that have at most 1 front, 1 back, 1 detail
+        if types.count(ImageType.FRONT) > 2 or types.count(ImageType.BACK) > 2:
+            # Split into chunks that have at most 2 front, 2 back, 2 detail
             group_jobs = sorted([jobs[jid] for jid in group.image_ids if jid in jobs], key=lambda j: _extract_timestamp(j.filename))
             
             # Clear the original group
@@ -386,10 +394,18 @@ async def group_images(jobs: Dict[str, ImageJob], emit_event=None) -> Dict[str, 
             group.spec_label_id = None
             
             current_split = group
+            front_count = 0
+            back_count = 0
+            detail_count = 0
+            
             for j in group_jobs:
-                if (j.image_type == ImageType.FRONT and current_split.front_image_id) or \
-                   (j.image_type == ImageType.BACK and current_split.back_image_id) or \
-                   (j.image_type == ImageType.DETAIL and current_split.detail_image_id):
+                is_front = (j.image_type == ImageType.FRONT)
+                is_back = (j.image_type == ImageType.BACK)
+                is_detail = (j.image_type == ImageType.DETAIL)
+                
+                if (is_front and front_count >= 2) or \
+                   (is_back and back_count >= 2) or \
+                   (is_detail and detail_count >= 2):
                     # Start a new group
                     style_counter += 1
                     current_split = StyleGroup(
@@ -399,8 +415,14 @@ async def group_images(jobs: Dict[str, ImageJob], emit_event=None) -> Dict[str, 
                         garment_type=group.garment_type
                     )
                     style_groups[current_split.id] = current_split
+                    front_count = 0
+                    back_count = 0
+                    detail_count = 0
                 
                 _add_job_to_group(current_split, j)
+                if is_front: front_count += 1
+                if is_back: back_count += 1
+                if is_detail: detail_count += 1
 
     # --- PASS 2: Heuristic Fuzzy (Ungrouped Only) ---
     ungrouped_jobs = {jid: j for jid, j in jobs.items() if not j.style_group}

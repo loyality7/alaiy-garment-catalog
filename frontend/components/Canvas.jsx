@@ -11,15 +11,16 @@ import { getThumbnailUrl, deleteJob, overrideClassification, triggerGrouping, tr
  *
  * @param {{ jobs: object, groups: object, onDropImage?: function }} props
  */
-export default function Canvas({ 
-  jobs, 
-  groups, 
-  onDropImage, 
-  isConnected, 
+export default function Canvas({
+  jobs,
+  groups,
+  onDropImage,
+  isConnected,
   isProcessing,
   workspaces = [],
   activeWorkspaceIndex = 0,
-  onWorkspaceChange 
+  onWorkspaceChange,
+  onAddWorkspace
 }) {
   const [selectedJob, setSelectedJob] = useState(null);
   const [viewMode, setViewMode] = useState("groups"); // "groups" | "all" | "ungrouped"
@@ -44,32 +45,33 @@ export default function Canvas({
 
   const handleGroup = async () => {
     setIsGrouping(true);
-    try { await triggerGrouping(); } 
-    catch (err) { console.error("Grouping error:", err); } 
+    try { await triggerGrouping(); }
+    catch (err) { console.error("Grouping error:", err); }
     finally { setTimeout(() => setIsGrouping(false), 2000); }
   };
 
   const handlePreview = async () => {
     try {
-      const data = await fetchPreview();
+      const groupIds = sortedGroups.map(g => g.id);
+      const data = await fetchPreview(groupIds);
       setPreviewSlides(data.slides || []);
     } catch (err) { console.error("Preview error:", err); }
   };
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    try { 
+    try {
       const groupIds = sortedGroups.map(g => g.id);
-      await triggerGenerate(groupIds); 
-    } 
-    catch (err) { console.error("Generation error:", err); } 
+      await triggerGenerate(groupIds);
+    }
+    catch (err) { console.error("Generation error:", err); }
     finally { setTimeout(() => setIsGenerating(false), 3000); }
   };
 
   const handleScan = async () => {
     setIsScanning(true);
-    try { await scanInputFolder(); } 
-    catch (err) { console.error("Scan error:", err); } 
+    try { await scanInputFolder(); }
+    catch (err) { console.error("Scan error:", err); }
     finally { setTimeout(() => setIsScanning(false), 2000); }
   };
 
@@ -79,7 +81,7 @@ export default function Canvas({
 
   const handleReset = async () => {
     if (confirm("Are you sure you want to reset the entire pipeline?")) {
-      try { await resetPipeline(); } 
+      try { await resetPipeline(); }
       catch (err) { console.error("Reset error:", err); }
     }
   };
@@ -138,33 +140,30 @@ export default function Canvas({
         <div className="flex items-center bg-[var(--bg-secondary)] rounded-full p-1 border border-[var(--border)]">
           <button
             onClick={() => setViewMode("groups")}
-            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-2 ${
-              viewMode === "groups"
+            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-2 ${viewMode === "groups"
                 ? "bg-white text-[var(--accent)] shadow-sm"
                 : "text-black hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]"
-            }`}
+              }`}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
             Groups
           </button>
           <button
             onClick={() => setViewMode("all")}
-            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-2 ${
-              viewMode === "all"
+            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-2 ${viewMode === "all"
                 ? "bg-white text-[var(--info)] shadow-sm"
                 : "text-black hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]"
-            }`}
+              }`}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
             All Images
           </button>
           <button
             onClick={() => setViewMode("ungrouped")}
-            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-2 ${
-              viewMode === "ungrouped"
+            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-2 ${viewMode === "ungrouped"
                 ? "bg-white text-[var(--error)] shadow-sm"
                 : "text-black hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]"
-            }`}
+              }`}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             Ungrouped
@@ -192,11 +191,10 @@ export default function Canvas({
           <button
             onClick={handleGroup}
             disabled={isGrouping || stats.cleaned === 0}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md border transition-all disabled:opacity-50 flex items-center gap-1.5 relative ${
-              stats.cleaned > 0
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md border transition-all disabled:opacity-50 flex items-center gap-1.5 relative ${stats.cleaned > 0
                 ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)] shadow-[0_0_12px_rgba(236,72,153,0.4)]"
                 : "border-[var(--border)] bg-white text-black hover:border-[var(--accent)] hover:text-[var(--accent)] shadow-sm"
-            }`}
+              }`}
           >
             {stats.cleaned > 0 && (
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[var(--accent)] rounded-full animate-ping" />
@@ -246,24 +244,49 @@ export default function Canvas({
       </div>
 
       {/* Workspace Tabs (Below Header) */}
-      {workspaces.length > 1 && (
-        <div className="w-full bg-[var(--bg-canvas)] border-b border-black/5 px-6 py-2 flex items-center justify-start gap-2 overflow-x-auto relative z-10 shadow-sm pl-[65px]">
-          <span className="text-[10px] font-bold text-[var(--text-muted)] mr-2 tracking-widest uppercase">Workspaces:</span>
-          {workspaces.map((_, i) => (
+      <div className="w-full bg-[var(--bg-canvas)] border-b border-[var(--border)] px-6 py-2 flex items-center justify-start gap-2 overflow-x-auto relative z-10 shadow-sm pl-[65px]">
+        <span className="text-[10px] font-bold text-[var(--text-muted)] mr-2 tracking-widest uppercase">Workspaces:</span>
+        {workspaces.map((ws, i) => {
+          const imgCount = ws.length;
+          const groupCount = new Set(ws.map(j => j.style_group).filter(Boolean)).size;
+          const thumbnails = ws.slice(0, 4);
+          return (
             <button
               key={i}
               onClick={() => onWorkspaceChange && onWorkspaceChange(i)}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 whitespace-nowrap ${
-                i === activeWorkspaceIndex 
-                  ? 'bg-[var(--accent)] text-white shadow-[0_4px_10px_rgba(236,72,153,0.2)]' 
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 whitespace-nowrap ${i === activeWorkspaceIndex
+                  ? 'bg-[var(--accent)] text-white shadow-[0_4px_10px_rgba(236,72,153,0.2)]'
                   : 'bg-white border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
-              }`}
+                }`}
             >
-              Workspace {i + 1}
+              {/* Mini thumbnails */}
+              <div className="flex -space-x-1">
+                {thumbnails.length > 0 ? thumbnails.map((j) => (
+                  <div key={j.id} className="w-5 h-5 rounded-full border-2 border-white overflow-hidden bg-[var(--bg-surface)]">
+                    <img
+                      src={getThumbnailUrl(j.id)}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={e => { e.target.style.display = "none"; }}
+                    />
+                  </div>
+                )) : (
+                  <div className="w-5 h-5 rounded-full border-2 border-white bg-[var(--bg-surface)] flex items-center justify-center text-[8px] text-[var(--text-muted)]">∅</div>
+                )}
+              </div>
+              <span className="text-inherit">WS {i + 1}</span>
+              {imgCount > 0 && <span className={`text-[9px] ${i === activeWorkspaceIndex ? 'text-white/70' : 'text-[var(--text-muted)]'}`}>{imgCount}img {groupCount}g</span>}
             </button>
-          ))}
-        </div>
-      )}
+          );
+        })}
+        <button
+          onClick={() => onAddWorkspace && onAddWorkspace()}
+          className="w-7 h-7 ml-1 rounded-full flex items-center justify-center bg-white border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--text-muted)] transition-colors shadow-sm cursor-pointer"
+          title="New Workspace"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+        </button>
+      </div>
 
       {/* Content area */}
       <div className="flex-1 overflow-y-auto pl-[65px] pr-8 py-6 relative">
@@ -413,11 +436,10 @@ export default function Canvas({
                     <button
                       key={t}
                       onClick={() => setOverrideForm(prev => ({ ...prev, image_type: t }))}
-                      className={`px-2.5 py-1 rounded-md text-[10px] font-semibold border transition-colors cursor-pointer ${
-                        (overrideForm?.image_type || selectedJob.image_type) === t
+                      className={`px-2.5 py-1 rounded-md text-[10px] font-semibold border transition-colors cursor-pointer ${(overrideForm?.image_type || selectedJob.image_type) === t
                           ? "bg-[var(--accent)] text-white border-[var(--accent)]"
                           : "bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] shadow-sm"
-                      }`}
+                        }`}
                     >
                       {t}
                     </button>
@@ -609,7 +631,7 @@ export default function Canvas({
                         <div key={slot} className="text-center">
                           <div className="aspect-[3/4] bg-[var(--bg-primary)] rounded-md overflow-hidden border border-[var(--border)] mb-1">
                             <img
-                              src={slide.slots[slot].thumbnail_url}
+                              src={getThumbnailUrl(slide.slots[slot].job_id)}
                               alt={slot}
                               className="w-full h-full object-contain"
                               onError={e => { e.target.style.display = "none"; }}
