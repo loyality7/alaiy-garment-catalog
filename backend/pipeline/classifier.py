@@ -26,6 +26,8 @@ FRONT:
 - Button placket visible (for polo shirts)
 - Brand tag at back of neckline may be visible
 - MUST show majority of front fabric panel
+- If the inner brand tag inside the back neckline is visible AND the whole garment is shown, it is the FRONT.
+
 
 BACK:
 - Full garment visible from the back
@@ -61,7 +63,7 @@ So always classify zoomed-in shots as DETAIL regardless of what garment it shows
 - Solid colored shirt with shadow = still "solid" pattern
 
 == METADATA EXTRACTION ==
-dominant_color: Most prominent fabric color. Be specific: "navy blue", "olive green", "rust brown", "light grey", "off white". If stripes exist, name the base fabric color not the stripe color.
+dominant_color: Most prominent fabric color. If stripes exist, name the base fabric color not the stripe color.
 garment_type: Exact type only: "polo shirt", "t-shirt", "overshirt", "pants", "jacket". Do NOT invent terms.
 pattern: Exact pattern: "solid", "striped", "ribbed knit", "textured knit", "checkered", "printed graphic"
 style_name: Concise name combining color + pattern + type. Example: "Navy Blue Solid Polo Shirt"
@@ -105,36 +107,43 @@ async def classify_image(image_path: str) -> ClassificationResult:
     Classify a single garment image using AI vision model.
     Returns a ClassificationResult with type, confidence, color, garment_type, pattern.
     """
-    try:
-        # Resize image for API efficiency
-        image_data_url = _resize_for_api(image_path)
-
-        # Call AI (NIM first, OpenRouter fallback)
-        content = await call_vision_model(
-            prompt=CLASSIFICATION_PROMPT,
-            image_data_url=image_data_url,
-            max_tokens=500,
-            temperature=0.1,
-        )
-
-        data = parse_json_response(content)
-
-        # Map image type
-        image_type_str = data.get("image_type", "UNKNOWN").upper()
+    max_attempts = 3
+    last_error = None
+    
+    for attempt in range(max_attempts):
         try:
-            image_type = ImageType(image_type_str)
-        except ValueError:
-            image_type = ImageType.UNKNOWN
-
-        return ClassificationResult(
-            image_type=image_type,
-            confidence=float(data.get("confidence", 0.5)),
-            dominant_color=data.get("dominant_color", ""),
-            garment_type=data.get("garment_type", ""),
-            pattern=data.get("pattern", ""),
-            style_name=data.get("style_name", ""),
-        )
-
-    except Exception as e:
-        logger.error(f"Classification failed for {image_path}: {e}")
-        raise
+            # Resize image for API efficiency
+            image_data_url = _resize_for_api(image_path)
+    
+            # Call AI (NIM first, OpenRouter fallback)
+            content = await call_vision_model(
+                prompt=CLASSIFICATION_PROMPT,
+                image_data_url=image_data_url,
+                max_tokens=800,
+                temperature=0.1,
+            )
+    
+            data = parse_json_response(content)
+    
+            # Map image type
+            image_type_str = data.get("image_type", "UNKNOWN").upper()
+            try:
+                image_type = ImageType(image_type_str)
+            except ValueError:
+                image_type = ImageType.UNKNOWN
+    
+            return ClassificationResult(
+                image_type=image_type,
+                confidence=float(data.get("confidence", 0.5)),
+                dominant_color=data.get("dominant_color", ""),
+                garment_type=data.get("garment_type", ""),
+                pattern=data.get("pattern", ""),
+                style_name=data.get("style_name", ""),
+            )
+    
+        except Exception as e:
+            last_error = e
+            logger.warning(f"Classification attempt {attempt+1} failed for {image_path}: {e}")
+            
+    logger.error(f"Classification failed for {image_path} after {max_attempts} attempts: {last_error}")
+    raise Exception(f"Classification failed after {max_attempts} attempts: {last_error}")
