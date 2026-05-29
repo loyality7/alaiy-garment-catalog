@@ -120,8 +120,16 @@ def smart_crop(image: Image.Image) -> Image.Image:
     x2 = min(img_w, x + w + pad_x)
     y2 = min(img_h, y + h + pad_y)
 
-    # Crop
+    # Perform the actual crop
     cropped = image.crop((x1, y1, x2, y2))
+
+    # Check if garment is sideways (wider than tall)
+    # Garments are almost always taller than wide. If w > h, it's rotated.
+    # We rotate the cropped image by -90 (clockwise) which fixes 90% of phone camera issues.
+    if w > h * 1.1:
+        logger.info(f"Garment bounding box is landscape ({w}x{h}). Rotating by -90 degrees.")
+        cropped = cropped.rotate(-90, expand=True, fillcolor=(255, 255, 255))
+        
     return cropped
 
 
@@ -172,42 +180,23 @@ def auto_brightness_contrast(image: Image.Image) -> Image.Image:
     return result
 
 
-def resize_to_format(image: Image.Image, image_type: ImageType) -> Image.Image:
+def resize_to_format(image: Image.Image) -> Image.Image:
     """
-    Step 5: Resize to target format without stretching.
-    FRONT/BACK → portrait, DETAIL → square.
-    Maintains aspect ratio by fitting within target and adding white padding.
+    Step 5: Resize image so its max dimension is 1000px to keep file sizes small.
+    Does NOT add any artificial white padding so PPT layouts remain clean.
     """
-    logger.info(f"Step 5: Resizing for {image_type.value}...")
-
-    if image_type in (ImageType.FRONT, ImageType.BACK):
-        target = PORTRAIT_SIZE
-    elif image_type == ImageType.DETAIL:
-        target = SQUARE_SIZE
-    elif image_type == ImageType.SPEC_LABEL:
-        target = SPEC_SIZE
-    else:
-        target = PORTRAIT_SIZE
-
-    target_w, target_h = target
-
-    # Calculate scaling to fit within target while maintaining aspect ratio
+    logger.info("Step 5: Resizing image (no padding)...")
+    
+    max_size = 1000
     img_w, img_h = image.size
-    ratio = min(target_w / img_w, target_h / img_h)
-
-    new_w = int(img_w * ratio)
-    new_h = int(img_h * ratio)
-
-    # Resize with high quality
-    resized = image.resize((new_w, new_h), Image.LANCZOS)
-
-    # Create white canvas and center the image
-    canvas = Image.new("RGB", target, (255, 255, 255))
-    offset_x = (target_w - new_w) // 2
-    offset_y = (target_h - new_h) // 2
-    canvas.paste(resized, (offset_x, offset_y))
-
-    return canvas
+    
+    if max(img_w, img_h) > max_size:
+        ratio = max_size / max(img_w, img_h)
+        new_w = int(img_w * ratio)
+        new_h = int(img_h * ratio)
+        return image.resize((new_w, new_h), Image.LANCZOS)
+        
+    return image
 
 
 def process_image(image_path: str, image_type: ImageType) -> bytes:
@@ -230,17 +219,24 @@ def process_image(image_path: str, image_type: ImageType) -> bytes:
     else:
         image = original
 
-    # Step 2: Auto-deskew
-    image = auto_deskew(image)
+    # Step 2: Auto-rotate landscape images for garments
+    # If the original raw image is landscape, we assume the camera stripped EXIF and it was taken upright.
+    # Rotate by -90 (clockwise).
+    if image_type in (ImageType.FRONT, ImageType.BACK) and image.width > image.height:
+        logger.info(f"Raw image is landscape ({image.width}x{image.height}). Auto-rotating by -90 degrees.")
+        image = image.rotate(-90, expand=True, fillcolor=(255, 255, 255))
 
-    # Step 3: Smart crop
+    # Removed auto_deskew because it incorrectly rotates striped/ribbed garments (like polo shirts) 
+    # based on fabric patterns instead of the true horizon.
+
+    # Step 3: Smart crop (will also catch sideways bounding boxes if raw wasn't landscape)
     image = smart_crop(image)
 
     # Step 4: Brightness/contrast correction
     image = auto_brightness_contrast(image)
 
     # Step 5: Resize to standard format
-    image = resize_to_format(image, image_type)
+    image = resize_to_format(image)
 
     # Convert to bytes
     output_buffer = io.BytesIO()

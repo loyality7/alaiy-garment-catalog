@@ -337,6 +337,10 @@ async def group_images(jobs: Dict[str, ImageJob], emit_event=None) -> Dict[str, 
         last_timestamp = -1
 
         for job in sorted_jobs:
+            # Skip spec labels in Pass 1 so they don't form their own groups
+            if job.image_type == ImageType.SPEC_LABEL:
+                continue
+
             ts = _extract_timestamp(job.filename)
             if ts == 0:
                 continue  # Skip files without timestamps in Pass 1
@@ -364,6 +368,39 @@ async def group_images(jobs: Dict[str, ImageJob], emit_event=None) -> Dict[str, 
             
     if emit_event:
         emit_event("grouping_pass1_complete", data={"groups": len(style_groups)})
+
+    # --- PASS 1.5: Split Overloaded Groups ---
+    # A group cannot have multiple FRONTs or multiple BACKs.
+    for gid, group in list(style_groups.items()):
+        # Check if overloaded
+        types = [jobs[jid].image_type for jid in group.image_ids if jid in jobs]
+        if types.count(ImageType.FRONT) > 1 or types.count(ImageType.BACK) > 1:
+            # Split into chunks that have at most 1 front, 1 back, 1 detail
+            group_jobs = sorted([jobs[jid] for jid in group.image_ids if jid in jobs], key=lambda j: _extract_timestamp(j.filename))
+            
+            # Clear the original group
+            group.image_ids = []
+            group.front_image_id = None
+            group.back_image_id = None
+            group.detail_image_id = None
+            group.spec_label_id = None
+            
+            current_split = group
+            for j in group_jobs:
+                if (j.image_type == ImageType.FRONT and current_split.front_image_id) or \
+                   (j.image_type == ImageType.BACK and current_split.back_image_id) or \
+                   (j.image_type == ImageType.DETAIL and current_split.detail_image_id):
+                    # Start a new group
+                    style_counter += 1
+                    current_split = StyleGroup(
+                        name=f"Style {style_counter}",
+                        style_number=style_counter,
+                        dominant_color=group.dominant_color,
+                        garment_type=group.garment_type
+                    )
+                    style_groups[current_split.id] = current_split
+                
+                _add_job_to_group(current_split, j)
 
     # --- PASS 2: Heuristic Fuzzy (Ungrouped Only) ---
     ungrouped_jobs = {jid: j for jid, j in jobs.items() if not j.style_group}
@@ -460,6 +497,9 @@ def _heuristic_group_images(jobs: Dict[str, ImageJob], all_jobs: Dict[str, Image
 
     # Try to assign low-confidence images
     for job in unassigned:
+        if job.style_group:
+            continue
+            
         best_group_id = None
         best_score = 0.0
 
@@ -473,7 +513,6 @@ def _heuristic_group_images(jobs: Dict[str, ImageJob], all_jobs: Dict[str, Image
 
         if best_score >= 0.4 and best_group_id:
             _add_job_to_group(style_groups[best_group_id], job)
-            job.style_group = best_group_id
         else:
             # Create a solo group for unmatched images
             style_counter += 1
@@ -538,7 +577,7 @@ def _assign_spec_labels(
                         best_distance = dist
                         best_group_id = gid
 
-        if best_group_id and best_distance < 100:
+        if best_group_id:
             _add_job_to_group(style_groups[best_group_id], spec_job)
             logger.info(f"Assigned spec label {spec_job.filename} to group {style_groups[best_group_id].name}")
 

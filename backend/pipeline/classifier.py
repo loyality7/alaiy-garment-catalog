@@ -23,10 +23,11 @@ Classify this image into EXACTLY ONE type:
 FRONT:
 - Full garment visible from the front
 - Shows collar from front side
-- Button placket visible (for polo shirts)
+- Button placket visible
 - Brand tag at back of neckline may be visible
 - MUST show majority of front fabric panel
 - If the inner brand tag inside the back neckline is visible AND the whole garment is shown, it is the FRONT.
+- Generally, if you can look into the neck opening, you are viewing the front.
 
 
 BACK:
@@ -35,6 +36,8 @@ BACK:
 - Back of collar visible
 - NO buttons, NO placket, NO front brand tag
 - MUST show majority of back fabric panel
+- If the top of the garment is just a flat collar edge folding over the shoulders with no neck opening visible, it is the BACK.
+- When viewing a garment from behind (such as a polo), only the folded back collar and plain back fabric are visible.
 
 DETAIL:
 - Close-up of ONE small area only
@@ -57,6 +60,7 @@ The grouper handles that using filename proximity.
 So always classify zoomed-in shots as DETAIL regardless of what garment it shows.
 
 == COMMON MISTAKES TO AVOID ==
+- A back view showing only a folded collar and no buttons = BACK (not FRONT)
 - A close-up of the collar area = DETAIL (not FRONT)
 - A back view with no buttons = BACK (not FRONT)  
 - A hangtag with text = SPEC_LABEL (not DETAIL)
