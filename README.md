@@ -1,6 +1,6 @@
 # Alaiy Garment Catalog
 
-Converts raw garment photos into a ready PowerPoint catalog.
+An automated end-to-end system that converts raw, unstructured garment photographs into a professional PowerPoint catalog. The pipeline classifies images (front/back/detail/spec label), extracts specification data from labels, removes backgrounds, organizes images into style groups, and generates a ready-to-use catalog presentation.
 
 ## Quick Start
 
@@ -10,33 +10,63 @@ docker compose up --build
 
 Frontend at `http://localhost:3000`, API at `http://localhost:8000`.
 
-## What It Does
+## What It Does (Simple)
 
-1. Upload or scan garment images (front/back/detail/spec label)
-2. AI classifies each image type + extracts specs from labels
-3. Automatically crops, color-corrects, and resizes images
-4. Groups images into style groups (4-pass algorithm)
-5. Drag-drop to fix any grouping mistakes
-6. Generates a professional PowerPoint catalog
-7. Real-time status via WebSocket — no refreshing needed
+1. Upload or scan garment images
+2. AI classifies each image as FRONT / BACK / DETAIL / SPEC_LABEL
+3. Extracts spec data from labels (ref number, fabric %, GSM)
+4. Crops, color-corrects, and resizes images
+5. Groups images into style groups (4-pass algorithm)
+6. Drag-drop to fix grouping mistakes
+7. Generates a PowerPoint catalog
+8. Real-time status via WebSocket
+
+---
 
 ## Setup
 
-**Prerequisites:** Python 3.11+, Node.js 20+, Redis 7+, Gemini API key
+### Prerequisites
+
+- Python 3.11+
+- Node.js 20+
+- Redis 7+ (or Docker)
+- A Gemini API key (or OpenRouter API key as fallback)
 
 ### Backend
 
 ```bash
 cd backend
+python -m venv venv
+venv\Scripts\activate      # Windows
 pip install -r requirements.txt
-cp .env.example .env   # set GEMINI_API_KEY
+```
+
+Copy `.env.example` to `.env` and set your API keys:
+
+```bash
+cp .env.example .env
+# Edit .env: set GEMINI_API_KEY or OPENROUTER_API_KEY
+```
+
+Start Redis (required):
+
+```bash
+# Docker:
+docker run -d -p 6379:6379 redis:7-alpine
+```
+
+Start the API server:
+
+```bash
+cd backend
 uvicorn backend.main:app --reload --port 8000
 ```
 
-In another terminal:
+Start the Celery worker in a separate terminal:
 
 ```bash
-celery -A backend.jobs.tasks worker --loglevel=info
+cd backend
+celery -A backend.jobs.tasks worker --loglevel=info --concurrency=4
 ```
 
 ### Frontend
@@ -47,47 +77,52 @@ npm install
 npm run dev
 ```
 
-### Docker
+The frontend runs on `http://localhost:3000` and proxies `/api/*` to `http://localhost:8000`.
+
+### Docker (All Services)
 
 ```bash
 docker compose up --build
 ```
 
-Starts: Redis, backend, Celery worker, frontend.
+This starts Redis, backend (UVicorn), Celery worker, and frontend (Next.js dev server).
 
 ---
 
 ## Project Structure
 
 ```
-backend/
-├── main.py                # FastAPI — REST + WebSocket
-├── models/schemas.py      # Pydantic models
-├── jobs/tasks.py          # Celery tasks
-├── pipeline/
-│   ├── classifier.py      # AI image classification
-│   ├── grouper.py         # 4-pass style grouping
-│   ├── image_processor.py # Crop, color, resize
-│   ├── ocr.py             # Spec label extraction
-│   └── ppt_generator.py   # PowerPoint generation
-└── utils/
-    ├── ai_client.py       # Gemini / OpenRouter client
-    └── file_utils.py      # File I/O helpers
-
-frontend/
-├── app/page.tsx           # Main app with WebSocket state
-├── components/
-│   ├── Canvas.jsx         # Workspace (Groups / All / Ungrouped)
-│   ├── StyleGroup.jsx     # Group card with drop target
-│   ├── ImageCard.jsx      # Thumbnail with status badges
-│   ├── UploadZone.jsx     # Drag-drop upload
-│   ├── PipelinePanel.jsx  # Stats sidebar
-│   └── FloatingToolbar.jsx
-├── hooks/useWebSocket.js  # Auto-reconnect WebSocket
-└── utils/api.js           # API client
+├── backend/
+│   ├── main.py              # FastAPI app — REST + WebSocket endpoints
+│   ├── models/schemas.py     # Pydantic models and enums
+│   ├── jobs/tasks.py         # Celery tasks (process, group, generate)
+│   ├── pipeline/
+│   │   ├── classifier.py     # AI garment image classifier
+│   │   ├── grouper.py        # 4-pass style grouping algorithm
+│   │   ├── image_processor.py # Background removal, crop, color correction
+│   │   ├── ocr.py            # Spec label extraction via AI
+│   │   └── ppt_generator.py  # PowerPoint catalog generation
+│   └── utils/
+│       ├── ai_client.py      # Unified AI vision client (Gemini / OpenRouter)
+│       └── file_utils.py     # File path and I/O helpers
+├── frontend/
+│   ├── app/page.tsx          # Main page with WebSocket state management
+│   ├── components/
+│   │   ├── Canvas.jsx        # Main workspace with view modes
+│   │   ├── StyleGroup.jsx    # Style group card with drop target
+│   │   ├── ImageCard.jsx     # Image thumbnail with status/type badges
+│   │   ├── UploadZone.jsx    # Drag-drop upload zone
+│   │   ├── PipelinePanel.jsx # Pipeline stats sidebar
+│   │   └── FloatingToolbar.jsx # Side toolbar
+│   ├── hooks/useWebSocket.js # WebSocket hook with auto-reconnect
+│   └── utils/api.js          # API client functions
+├── docker-compose.yml        # Full stack orchestration
+└── input/                    # Uploaded images and reference.pptx
 ```
 
-## Workflow
+---
+
+## Development Workflow
 
 1. **Upload** — drag-drop or file picker (5 files/batch)
 2. **Classify** — AI identifies FRONT/BACK/DETAIL/SPEC_LABEL
@@ -106,11 +141,66 @@ uploaded → classifying → classified → processing → cleaned → assigned 
                                                                         Catalog.pptx
 ```
 
+---
+
+## Implemented Capabilities (Detailed)
+
+- **Image upload** via drag-drop or file picker, with batch processing (5 files at a time)
+- **Scans input folder** for existing images and queues them automatically
+- **AI classification** of garment images into FRONT, BACK, DETAIL, and SPEC_LABEL types using Gemini 2.5 Flash
+- **Spec data extraction** from label images: reference number, fabric composition, GSM, date, remarks
+- **Image processing**: smart cropping, auto-rotation, brightness/contrast correction, resizing (background removal is disabled by default)
+- **Style grouping** using a 4-pass algorithm (timestamp proximity, fuzzy heuristic matching, AI vision confirmation)
+- **Drag-and-drop** manual correction of image-to-group assignments
+- **Classification override** via detail panel
+- **PowerPoint catalog generation** with cover slide, per-slide layouts (front/back/detail + specs), matching a reference PPT layout
+- **Real-time pipeline visibility** via WebSocket: per-image status (uploaded → classifying → classified → processing → cleaned → assigned → ppt_ready)
+- **Workspace partitioning** by upload time batches (60-second gap threshold)
+- **Undo/redo** for drag-and-drop moves (Ctrl+Z / Ctrl+Y)
+- **File organization** output: `Processed_Garments/StyleName_front.jpg`, etc.
+
+---
+
+## File Structure Explained (Detailed)
+
+### Backend
+
+| File | Role |
+|------|------|
+| `main.py` | FastAPI app — 14 REST endpoints + 1 WebSocket endpoint. Manages Redis connections (sync for endpoints, async for pub/sub listener). ConnectionManager tracks active WebSocket clients. Background `redis_listener` subscribes to `ws_events` channel and broadcasts to all connected clients. |
+| `models/schemas.py` | Pydantic models — `ImageType` enum (FRONT/BACK/DETAIL/SPEC_LABEL/UNKNOWN), `JobStatus` enum, `ClassificationResult`, `SpecData`, `ImageJob`, `StyleGroup`, `WebSocketMessage`, `PipelineStats`. |
+| `jobs/tasks.py` | Celery tasks: `process_image` (per-image classify+process+OCR), `run_grouping` (4-pass grouping), `generate_catalog` (PPT generation). |
+| `pipeline/classifier.py` | Sends image to Gemini API with a detailed classification prompt. Retries up to 3 times. Resizes images to max 1024px for API efficiency. Parses JSON response into `ClassificationResult`. |
+| `pipeline/image_processor.py` | 5-step processing: (1) background removal via rembg (disabled by default), (2) auto-rotation of landscape garment images, (3) smart cropping via OpenCV contour detection, (4) brightness/contrast histogram correction, (5) max-dimension resize to 1000px. |
+| `pipeline/ocr.py` | Sends spec label images to AI with extraction prompt. Higher resolution (1536px max). Returns `SpecData` with ref_number, fabric_composition, gsm, date, remarks. |
+| `pipeline/grouper.py` | 4-pass grouping: Pass 1 (Timestamp Gap), Pass 1.5 (Split overloaded), Pass 2 (Heuristic fuzzy), Pass 3 (AI vision solo confirmation), Pass 4 (AI vision suspicious group confirmation). |
+| `pipeline/ppt_generator.py` | Creates PowerPoint using python-pptx. Loads reference PPT for dimensions if available. Generates cover slide + per-style slides with dark header, cream body, front/back/detail images in framed positions, spec data panel, and footer. |
+| `utils/ai_client.py` | Unified AI vision client supporting Gemini (primary) and OpenRouter (fallback). Handles provider selection, retry logic, and response parsing. |
+| `utils/file_utils.py` | File path and I/O helpers: directory management, base64 encoding, file saving, output organization into `Processed_Garments/`. |
+
+### Frontend
+
+| Component | File | Role |
+|-----------|------|------|
+| Page | `page.tsx` | Root component managing application state (jobs, groups), WebSocket message handling, workspace partitioning, undo/redo history |
+| Canvas | `Canvas.jsx` | Main workspace with three view modes (Groups, All Images, Ungrouped), action buttons (Scan, Group, Generate, Download, Reset) |
+| StyleGroup | `StyleGroup.jsx` | Container for one garment style, group metadata, spec data summary, image cards, drop target for drag-and-drop |
+| ImageCard | `ImageCard.jsx` | Single image thumbnail with type badge, confidence score, status badge, classification metadata, expandable spec data, custom drag ghost |
+| UploadZone | `UploadZone.jsx` | Drag-drop and file picker upload with per-batch (5 files) progress display |
+| PipelinePanel | `PipelinePanel.jsx` | Left sidebar showing pipeline stage counts, progress bar, style group count |
+| FloatingToolbar | `FloatingToolbar.jsx` | Vertical toolbar with buttons to toggle upload panel and stats panel |
+| useWebSocket | `hooks/useWebSocket.js` | Auto-connecting WebSocket with 3-second reconnect and 30-second ping keepalive |
+| api.js | `utils/api.js` | Functions for all REST endpoints with dynamic base URL resolution |
+
+---
+
 ## Limitations
 
-- Background removal disabled by default (`REMOVE_BG=false`)
-- Logo is rendered as text (no image file)
-- JSX files despite TypeScript config
-- No test suite
-- No slide preview before export
-- No output versioning
+- Background removal (`rembg`) is **disabled by default** (`REMOVE_BG=false`) due to potential quality issues
+- The "asmara" logo in the PowerPoint is rendered as styled text (no logo image file)
+- The frontend uses `.jsx` files despite TypeScript being configured
+- No automated test suite is present
+- The reference PPT (`input/reference.pptx`) is optional; if absent, default slide dimensions (13.33×7.5 inches) are used
+- The frontend does not implement a "Slide Preview before export" feature (listed as a bonus goal)
+- Output versioning is not implemented
+- There is no confirmation dialog for reclassification or grouping override (only for reset and delete)
