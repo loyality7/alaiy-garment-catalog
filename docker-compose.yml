@@ -4,7 +4,8 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      # Map to 6380 on host to avoid conflict with your local Redis
+      - "6380:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -25,6 +26,9 @@ services:
       - ./backend:/app/backend
     env_file:
       - ./backend/.env
+    environment:
+      # Override Redis URL to use Docker service name instead of localhost
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       redis:
         condition: service_healthy
@@ -41,10 +45,13 @@ services:
       - ./backend:/app/backend
     env_file:
       - ./backend/.env
+    environment:
+      # Override Redis URL to use Docker service name instead of localhost
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       redis:
         condition: service_healthy
-    command: celery -A backend.jobs.tasks worker --loglevel=info --concurrency=4
+    command: celery -A backend.jobs.tasks worker -P threads --loglevel=info --concurrency=2
     working_dir: /app
 
   frontend:
@@ -56,7 +63,11 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    command: npm run dev
+      - /app/.next
+    environment:
+      # Tell Next.js where the backend lives inside Docker network
+      - NEXT_PUBLIC_BACKEND_URL=http://backend:8000
+    command: npm run dev -- --hostname 0.0.0.0
     depends_on:
       - backend
 

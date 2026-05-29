@@ -1,12 +1,16 @@
 import type { NextConfig } from "next";
 
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+const backendHost = new URL(backendUrl).hostname;
+const backendPort = new URL(backendUrl).port || "8000";
+
 const nextConfig: NextConfig = {
   /* Proxy API calls to the FastAPI backend */
   async rewrites() {
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:8000/:path*",
+        destination: `${backendUrl}/:path*`,
       },
     ];
   },
@@ -14,8 +18,8 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "http",
-        hostname: "localhost",
-        port: "8000",
+        hostname: backendHost,
+        port: backendPort,
       },
     ],
     unoptimized: true,
@@ -23,3 +27,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
