@@ -244,7 +244,7 @@ export default function Canvas({
         {workspaces.map((ws, i) => {
           const imgCount = ws.length;
           const groupCount = new Set(ws.map(j => j.style_group).filter(Boolean)).size;
-          const thumbnails = ws.slice(0, 4);
+          const thumbnails = ws.slice(0, 3);
           return (
             <button
               key={i}
