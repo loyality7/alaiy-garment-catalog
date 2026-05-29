@@ -3,8 +3,11 @@
  * Bypasses Next.js proxy to avoid body size limits for large files.
  */
 
-// Determine base URL dynamically based on environment
+// Determine base URL dynamically based on environment or .env
 const getBaseUrl = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
   if (typeof window !== "undefined") {
     return `http://${window.location.hostname}:8000`;
   }
@@ -17,6 +20,9 @@ export const API_BASE_URL = getBaseUrl();
  * Get the WebSocket URL for the backend
  */
 export const getWsUrl = () => {
+  if (process.env.NEXT_PUBLIC_WS_URL) {
+    return process.env.NEXT_PUBLIC_WS_URL;
+  }
   if (typeof window !== "undefined") {
     return `ws://${window.location.hostname}:8000/ws`;
   }
