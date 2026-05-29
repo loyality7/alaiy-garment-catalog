@@ -1,6 +1,6 @@
 """
-Unified AI vision client supporting NVIDIA NIM (primary) and OpenRouter (fallback).
-NVIDIA PaliGemma VLM is the default provider.
+Unified AI vision client supporting Gemini (primary) and OpenRouter (fallback).
+Gemini Flash is the default provider.
 Handles provider selection, retry logic, and response parsing.
 """
 
@@ -16,27 +16,16 @@ from PIL import Image
 logger = logging.getLogger(__name__)
 
 # ── Provider config ──
-AI_PROVIDER = os.getenv("AI_PROVIDER", "nvidia")  # "groq", "nvidia", or "openrouter"
-
-# NVIDIA NIM
-NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
-NVIDIA_CHAT_URL = os.getenv("NVIDIA_CHAT_URL", "https://integrate.api.nvidia.com/v1/chat/completions")
-NVIDIA_MODEL = os.getenv("NVIDIA_MODEL", "nvidia/llama-3.2-nv-vision-72b-instruct")
-NVIDIA_TEXT_MODEL = os.getenv("NVIDIA_TEXT_MODEL", "mistralai/mistral-large-3-675b-instruct-2512")
+AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini")  # "gemini" or "openrouter"
 
 # OpenRouter
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1/chat/completions")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemini-flash-2.5")
 
-# Groq
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
-GROQ_VISION_MODEL = os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
-
 # Gemini
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
 
@@ -77,17 +66,15 @@ def _get_provider_order() -> list:
     
     if primary == "gemini" and GEMINI_API_KEY:
         providers.append("gemini")
-    elif primary == "groq" and GROQ_API_KEY:
-        providers.append("groq")
+    elif primary == "openrouter" and OPENROUTER_API_KEY:
+        providers.append("openrouter")
         
-    if NVIDIA_API_KEY and "nvidia" not in providers:
-        providers.append("nvidia")
-    if GROQ_API_KEY and "groq" not in providers:
-        providers.append("groq")
     if GEMINI_API_KEY and "gemini" not in providers:
         providers.append("gemini")
+    if OPENROUTER_API_KEY and "openrouter" not in providers:
+        providers.append("openrouter")
         
-    return providers if providers else ["nvidia"]
+    return providers if providers else ["gemini"]
 
 
 async def _call_provider(
@@ -98,117 +85,15 @@ async def _call_provider(
     temperature: float,
 ) -> Optional[str]:
     """Call a specific provider and return the response content."""
-    if provider == "nvidia":
-        return await _call_nvidia(prompt, image_data_url, max_tokens, temperature)
-    elif provider == "groq":
-        return await call_groq_vision(prompt, image_data_url, temperature)
-    elif provider == "gemini":
+    if provider == "gemini":
         return await _call_gemini(prompt, image_data_url, temperature)
+    elif provider == "openrouter":
+        return await _call_openrouter(prompt, image_data_url, max_tokens, temperature)
     else:
         raise ValueError(f"Unknown provider: {provider}")
 
 
-async def _call_nvidia(
-    prompt: str,
-    image_data_url: str,
-    max_tokens: int,
-    temperature: float,
-) -> str:
-    """
-    Call NVIDIA NIM API using the Mistral Large model.
-    """
-    import asyncio
-    headers = {
-        "Authorization": f"Bearer {NVIDIA_API_KEY}",
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-    }
 
-    payload = {
-        "model": NVIDIA_MODEL,
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": image_data_url}}
-                ]
-            }
-        ],
-        "max_tokens": 2048,
-        "temperature": 0.15,
-        "top_p": 1.00,
-        "frequency_penalty": 0.00,
-        "presence_penalty": 0.00,
-        "stream": False,
-    }
-
-    print(f"\n[NVIDIA MISTRAL] Sending request to {NVIDIA_CHAT_URL}")
-    print(f"[NVIDIA MISTRAL] Prompt: {prompt[:100]}...")
-
-    max_retries = 6
-    for attempt in range(max_retries):
-        try:
-            async with httpx.AsyncClient(timeout=90.0) as client:
-                response = await client.post(NVIDIA_CHAT_URL, headers=headers, json=payload)
-                
-                print(f"[NVIDIA MISTRAL] HTTP Status Code: {response.status_code}")
-                
-                if response.status_code == 429:
-                    backoff = (attempt + 1) * 4
-                    print(f"[NVIDIA MISTRAL] Rate limit hit (429). Retrying in {backoff} seconds (Attempt {attempt+1}/{max_retries})...")
-                    await asyncio.sleep(backoff)
-                    continue
-                
-                # Explicit error logging to help debug if API rejects
-                if response.status_code != 200:
-                    logger.error(f"[NVIDIA MISTRAL] Error {response.status_code}: {response.text}")
-                    print(f"[NVIDIA MISTRAL] ERROR FULL RESPONSE:\n{response.text}")
-                
-                response.raise_for_status()
-                result = response.json()
-                break
-        except Exception as e:
-            if attempt == max_retries - 1:
-                raise
-            backoff = (attempt + 1) * 4
-            print(f"[NVIDIA MISTRAL] Connection/HTTP error: {e}. Retrying in {backoff} seconds...")
-            await asyncio.sleep(backoff)
-
-    print(f"[NVIDIA MISTRAL] Success. Extracted choices...")
-    content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
-    print(f"[NVIDIA MISTRAL] Raw Response Content:\n{content}\n")
-    logger.info(f"[NVIDIA MISTRAL] Response received ({len(content)} chars)")
-    return _clean_response(content)
-
-
-def _compress_for_nvidia(b64_data: str) -> str:
-    """Compress image to fit within NVIDIA's 180KB base64 limit."""
-    raw = base64.b64decode(b64_data)
-    img = Image.open(io.BytesIO(raw))
-
-    # Progressively reduce quality and size until it fits
-    for quality in [70, 50, 35, 20]:
-        for max_dim in [1024, 768, 512]:
-            w, h = img.size
-            if max(w, h) > max_dim:
-                ratio = max_dim / max(w, h)
-                resized = img.resize((int(w * ratio), int(h * ratio)), Image.LANCZOS)
-            else:
-                resized = img
-
-            buf = io.BytesIO()
-            resized.save(buf, format="JPEG", quality=quality)
-            encoded = base64.b64encode(buf.getvalue()).decode("utf-8")
-            if len(encoded) <= NVIDIA_MAX_B64_SIZE:
-                logger.info(f"Compressed image to {len(encoded)} chars (q={quality}, max={max_dim})")
-                return encoded
-
-    # Last resort: tiny thumbnail
-    thumb = img.resize((384, 384), Image.LANCZOS)
-    buf = io.BytesIO()
-    thumb.save(buf, format="JPEG", quality=15)
-    return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
 async def _call_openrouter(
@@ -314,37 +199,7 @@ def parse_json_response(content: str) -> list | dict:
 
 
 
-async def call_groq_vision(prompt: str, image_data_url: str, temperature: float = 0.1) -> str:
-    """Call Groq vision completions using llama-3.2-11b-vision-preview."""
-    from groq import AsyncGroq
-    if not GROQ_API_KEY:
-        raise ValueError("GROQ_API_KEY is not set.")
-    
-    print(f"\n[GROQ VISION] Sending request to Groq using model {GROQ_VISION_MODEL}")
-    
-    client = AsyncGroq(api_key=GROQ_API_KEY)
-    
-    # Check if the image_data_url is a base64 string or asset URL.
-    # Groq API accepts base64 data URLs: "data:image/jpeg;base64,..."
-    completion = await client.chat.completions.create(
-        model=GROQ_VISION_MODEL,
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": image_data_url}}
-                ]
-            }
-        ],
-        temperature=temperature,
-        max_completion_tokens=2048,
-        top_p=1,
-        stream=False,
-    )
-    content = completion.choices[0].message.content or ""
-    print(f"[GROQ VISION] Response received ({len(content)} chars)")
-    return _clean_response(content)
+
 
 
 async def _call_gemini(prompt: str, image_data_url: str, temperature: float = 0.1) -> str:

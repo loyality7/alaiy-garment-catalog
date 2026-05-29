@@ -1,5 +1,5 @@
 """
-Image classifier using AI vision models (NVIDIA NIM primary, OpenRouter fallback).
+Image classifier using AI vision models (Gemini primary, OpenRouter fallback).
 Classifies garment images as FRONT, BACK, DETAIL, or SPEC_LABEL.
 Also extracts: dominant color, garment type, and pattern.
 """
@@ -119,7 +119,7 @@ async def classify_image(image_path: str) -> ClassificationResult:
             # Resize image for API efficiency
             image_data_url = _resize_for_api(image_path)
     
-            # Call AI (NIM first, OpenRouter fallback)
+            # Call AI (Gemini first, OpenRouter fallback)
             content = await call_vision_model(
                 prompt=CLASSIFICATION_PROMPT,
                 image_data_url=image_data_url,
