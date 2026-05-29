@@ -25,10 +25,10 @@ FRONT:
 - Shows collar from front side
 - Button placket visible
 - Brand tag at back of neckline may be visible
-- MUST show majority of front fabric panel
+- MUST show majority of front fabric panel (including the bottom hem).
 - If the inner brand tag inside the back neckline is visible AND the whole garment is shown, it is the FRONT.
 - Generally, if you can look into the neck opening, you are viewing the front.
-
+- If the garment is folded, you must see the entire folded package. If it's a tight crop of just the collar, it is DETAIL, not FRONT.
 
 BACK:
 - Full garment visible from the back
@@ -40,10 +40,11 @@ BACK:
 - When viewing a garment from behind (such as a polo), only the folded back collar and plain back fabric are visible.
 
 DETAIL:
-- Close-up of ONE small area only
-- Examples: fabric texture, cuff, hem, seam, inner label/tag, collar edge
-- If image is zoomed in on any part — it is DETAIL, NOT FRONT
-- Even if collar is visible, if it fills >50% of frame = DETAIL
+- Close-up of ONE small area only (e.g., just the collar, just the cuff, just the logo).
+- Examples: fabric texture, cuff, hem, seam, inner label/tag, collar edge.
+- If image is zoomed in or cropped heavily on any part — it is DETAIL, NOT FRONT.
+- Even if collar and button placket are visible, if it fills >50% of the frame and the rest of the shirt is cut off = DETAIL.
+- Any tight shot of a folded shirt's collar area is a DETAIL shot.
 
 SPEC_LABEL:
 - Physical paper tag OR printed specification card
@@ -54,7 +55,7 @@ SPEC_LABEL:
 == CRITICAL RULE FOR DETAIL SHOTS ==
 If the image shows ONLY a collar, ONLY a cuff, ONLY a fabric texture,
 or ONLY an inner label — classify as DETAIL.
-DETAIL images belong to the same garment as nearby FRONT/BACK images.
+If the bottom hem of the shirt is NOT visible because it is cropped out in a close-up, it is DETAIL.
 The classifier does NOT decide which garment a DETAIL belongs to.
 The grouper handles that using filename proximity.
 So always classify zoomed-in shots as DETAIL regardless of what garment it shows.
@@ -62,7 +63,7 @@ So always classify zoomed-in shots as DETAIL regardless of what garment it shows
 == COMMON MISTAKES TO AVOID ==
 - CRITICAL: A view showing the back of a folded collar with NO buttons/placket visible = BACK.
 - If it's a polo shirt and you do NOT see the front button placket = BACK.
-- A close-up of the collar area = DETAIL (not FRONT)
+- A close-up of the collar area (even on a folded shirt) = DETAIL (not FRONT). Only mark FRONT if the entire folded shirt is visible in the frame.
 - A hangtag with text = SPEC_LABEL (not DETAIL)
 - Solid colored shirt with shadow = still "solid" pattern
 
