@@ -2,23 +2,24 @@
 
 /* ── Design tokens ── */
 :root {
-  --bg-primary: #0f0f0f;
-  --bg-secondary: #1a1a1a;
-  --bg-card: #222222;
-  --bg-card-hover: #2a2a2a;
-  --bg-surface: #161616;
-  --text-primary: #f0ece4;
-  --text-secondary: #9a9589;
-  --text-muted: #6b6660;
-  --accent: #c4785a;
-  --accent-hover: #d98e6e;
-  --accent-subtle: rgba(196, 120, 90, 0.12);
-  --border: #2d2d2d;
-  --border-hover: #3d3d3d;
-  --success: #4ade80;
-  --warning: #fbbf24;
-  --error: #f87171;
-  --info: #60a5fa;
+  --bg-canvas: #fafafa;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f4f4f5;
+  --bg-card: #ffffff;
+  --bg-card-hover: #fafafa;
+  --bg-surface: #ffffff;
+  --text-primary: #18181b;
+  --text-secondary: #71717a;
+  --text-muted: #a1a1aa;
+  --accent: #ff2f5e;
+  --accent-hover: #e01b46;
+  --accent-subtle: rgba(255, 47, 94, 0.1);
+  --border: #e4e4e7;
+  --border-hover: #d4d4d8;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #3b82f6;
 
   /* Status colors */
   --status-uploaded: #6b7280;
@@ -33,11 +34,11 @@
   --radius: 12px;
   --radius-sm: 8px;
   --radius-lg: 16px;
-  --font-sans: "Inter", var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --font-mono: var(--font-geist-mono), "JetBrains Mono", monospace;
-  --shadow-card: 0 2px 12px rgba(0,0,0,0.3);
-  --shadow-hover: 0 8px 30px rgba(0,0,0,0.4);
-  --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --shadow-card: 0px 1px 2px 0px rgba(0, 0, 0, 0.05);
+  --shadow-hover: 0px 20px 25px -5px rgba(0, 0, 0, 0.1), 0px 8px 10px -6px rgba(0, 0, 0, 0.1);
+  --transition: 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @theme inline {
@@ -51,10 +52,20 @@
 * { box-sizing: border-box; }
 
 body {
-  background: var(--bg-primary);
+  background: var(--bg-canvas);
   color: var(--text-primary);
   font-family: var(--font-sans);
+  font-size: 12.25px;
+  font-weight: 500;
+  line-height: 17.5px;
   overflow: hidden;
+}
+
+/* ── Canvas Grid Background ── */
+.canvas-grid {
+  background-color: var(--bg-canvas);
+  background-image: radial-gradient(var(--border) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 /* ── Scrollbar ── */
@@ -156,7 +167,6 @@ body {
 /* ── Image card hover ── */
 .image-card {
   transition: all var(--transition);
-  cursor: pointer;
 }
 .image-card:hover {
   transform: translateY(-2px);
