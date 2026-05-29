@@ -143,8 +143,14 @@ export default function UploadZone({ onUploadComplete }) {
           onChange={handleFileSelect}
         />
 
-        <div className="text-3xl mb-2">
-          {isDragOver ? "📥" : isUploading ? "⏳" : "📤"}
+        <div className="text-[var(--accent)] mb-3">
+          {isDragOver ? (
+            <svg className="w-10 h-10 mx-auto animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+          ) : isUploading ? (
+            <svg className="w-10 h-10 mx-auto animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+          ) : (
+            <svg className="w-10 h-10 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+          )}
         </div>
 
         <p className="text-sm font-medium text-[var(--text-primary)] mb-1">
@@ -169,13 +175,15 @@ export default function UploadZone({ onUploadComplete }) {
               style={{ animationDelay: `${idx * 30}ms` }}
             >
               <span className="flex-shrink-0">
-                {file.status === "done"
-                  ? "✅"
-                  : file.status === "error"
-                  ? "❌"
-                  : file.status === "uploading"
-                  ? "⏳"
-                  : "⏸️"}
+                {file.status === "done" ? (
+                  <svg className="w-3.5 h-3.5 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                ) : file.status === "error" ? (
+                  <svg className="w-3.5 h-3.5 text-[var(--error)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                ) : file.status === "uploading" ? (
+                  <svg className="w-3.5 h-3.5 text-[var(--accent)] animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                ) : (
+                  <svg className="w-3.5 h-3.5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                )}
               </span>
               <span className="truncate flex-1 text-[var(--text-secondary)]">
                 {file.name}
