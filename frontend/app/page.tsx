@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import useWebSocket from "@/hooks/useWebSocket";
 import PipelinePanel from "@/components/PipelinePanel";
 import Canvas from "@/components/Canvas";
@@ -116,27 +116,80 @@ export default function Home() {
     setTimeout(refreshJobs, 500);
   };
 
+  const [moveHistory, setMoveHistory] = useState([]);
+  const [redoHistory, setRedoHistory] = useState([]);
+
   const handleDropImage = async (jobId, targetGroupId) => {
     try {
+      const job = jobs[jobId];
+      const oldGroupId = job?.style_group || null;
+      
       await moveImage(jobId, targetGroupId);
+      
+      setMoveHistory(prev => [...prev, { jobId, from: oldGroupId, to: targetGroupId }]);
+      setRedoHistory([]);
     } catch (err) {
       console.error("Move image error:", err);
     }
   };
 
+  // Keyboard shortcuts for Undo/Redo
+  useEffect(() => {
+    const handleKeyDown = async (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (moveHistory.length > 0) {
+          const lastMove = moveHistory[moveHistory.length - 1];
+          await moveImage(lastMove.jobId, lastMove.from);
+          setMoveHistory(prev => prev.slice(0, -1));
+          setRedoHistory(prev => [...prev, lastMove]);
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        if (redoHistory.length > 0) {
+          const nextMove = redoHistory[redoHistory.length - 1];
+          await moveImage(nextMove.jobId, nextMove.to);
+          setRedoHistory(prev => prev.slice(0, -1));
+          setMoveHistory(prev => [...prev, nextMove]);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [moveHistory, redoHistory]);
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
   return (
-    <div className="flex h-screen w-screen overflow-hidden relative">
-      <PipelinePanel
-        jobs={jobs}
-        groups={groups}
-        isConnected={isConnected}
-        onUploadComplete={handleUploadComplete}
-      />
-      <Canvas
-        jobs={jobs}
-        groups={groups}
-        onDropImage={handleDropImage}
-      />
+    <div className="flex h-screen w-screen overflow-hidden relative bg-[var(--bg-canvas)]">
+      {/* Sidebar Container with smooth width transition */}
+      <div 
+        className={`relative transition-all duration-300 ease-in-out h-full z-20 ${
+          isSidebarOpen ? "w-[300px]" : "w-0"
+        }`}
+      >
+        <div className={`absolute top-0 left-0 w-[300px] h-full shadow-2xl transition-transform duration-300 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+          <PipelinePanel
+            jobs={jobs}
+            groups={groups}
+            isConnected={isConnected}
+            onUploadComplete={handleUploadComplete}
+            isSidebarOpen={isSidebarOpen}
+            onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+          />
+        </div>
+      </div>
+      
+      {/* Main Canvas Area */}
+      <div className="flex-1 h-full relative z-10 transition-all duration-300">
+        <Canvas
+          jobs={jobs}
+          groups={groups}
+          onDropImage={handleDropImage}
+          isSidebarOpen={isSidebarOpen}
+          onSidebarToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+        />
+      </div>
     </div>
   );
 }
