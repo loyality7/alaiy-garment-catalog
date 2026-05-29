@@ -34,6 +34,11 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
 GROQ_VISION_MODEL = os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
 
+# Gemini
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
+
 
 
 async def call_vision_model(
@@ -68,17 +73,20 @@ async def call_vision_model(
 def _get_provider_order() -> list:
     """Determine provider priority order."""
     primary = AI_PROVIDER.lower()
-    if primary == "groq" and GROQ_API_KEY:
-        providers = ["groq"]
-        if NVIDIA_API_KEY:
-            providers.append("nvidia")
-        return providers
-    
     providers = []
-    if NVIDIA_API_KEY:
-        providers.append("nvidia")
-    if GROQ_API_KEY:
+    
+    if primary == "gemini" and GEMINI_API_KEY:
+        providers.append("gemini")
+    elif primary == "groq" and GROQ_API_KEY:
         providers.append("groq")
+        
+    if NVIDIA_API_KEY and "nvidia" not in providers:
+        providers.append("nvidia")
+    if GROQ_API_KEY and "groq" not in providers:
+        providers.append("groq")
+    if GEMINI_API_KEY and "gemini" not in providers:
+        providers.append("gemini")
+        
     return providers if providers else ["nvidia"]
 
 
@@ -94,6 +102,8 @@ async def _call_provider(
         return await _call_nvidia(prompt, image_data_url, max_tokens, temperature)
     elif provider == "groq":
         return await call_groq_vision(prompt, image_data_url, temperature)
+    elif provider == "gemini":
+        return await _call_gemini(prompt, image_data_url, temperature)
     else:
         raise ValueError(f"Unknown provider: {provider}")
 
@@ -334,4 +344,76 @@ async def call_groq_vision(prompt: str, image_data_url: str, temperature: float 
     )
     content = completion.choices[0].message.content or ""
     print(f"[GROQ VISION] Response received ({len(content)} chars)")
+    return _clean_response(content)
+
+
+async def _call_gemini(prompt: str, image_data_url: str, temperature: float = 0.1) -> str:
+    """Call Google Gemini API."""
+    if not GEMINI_API_KEY:
+        raise ValueError("GEMINI_API_KEY is not set.")
+        
+    print(f"\n[GEMINI VISION] Sending request to Gemini using model {GEMINI_MODEL}")
+    
+    import re
+    match = re.match(r'data:(image/\w+);base64,(.*)', image_data_url)
+    if not match:
+        raise ValueError("Invalid image_data_url format for Gemini")
+        
+    mime_type = match.group(1)
+    base64_data = match.group(2)
+    
+    url = f"{GEMINI_API_URL}/{GEMINI_MODEL}:streamGenerateContent?key={GEMINI_API_KEY}"
+    
+    payload = {
+        "contents": [
+          {
+            "role": "user",
+            "parts": [
+              {
+                "text": prompt
+              },
+              {
+                "inlineData": {
+                  "mimeType": mime_type,
+                  "data": base64_data
+                }
+              }
+            ]
+          }
+        ],
+        "generationConfig": {
+          "temperature": temperature
+        }
+    }
+    
+    async with httpx.AsyncClient(timeout=90.0) as client:
+        response = await client.post(url, json=payload, headers={"Content-Type": "application/json"})
+        
+        if response.status_code != 200:
+            logger.error(f"[GEMINI VISION] Error {response.status_code}: {response.text}")
+            response.raise_for_status()
+            
+        result = response.json()
+        
+    content = ""
+    # streamGenerateContent typically returns a list of JSON objects
+    if isinstance(result, list):
+        for chunk in result:
+            try:
+                parts = chunk.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                for p in parts:
+                    if "text" in p:
+                        content += p["text"]
+            except Exception:
+                pass
+    elif isinstance(result, dict):
+        try:
+            parts = result.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+            for p in parts:
+                if "text" in p:
+                    content += p["text"]
+        except Exception:
+            pass
+            
+    print(f"[GEMINI VISION] Response received ({len(content)} chars)")
     return _clean_response(content)
