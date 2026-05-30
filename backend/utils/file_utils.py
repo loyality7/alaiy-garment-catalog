@@ -44,8 +44,41 @@ def get_reference_ppt() -> Path:
 
 
 def get_catalog_output_path() -> Path:
-    """Get the output catalog PowerPoint path."""
+    """Get the output catalog PowerPoint path (legacy/fallback)."""
     return get_output_dir() / "Catalog.pptx"
+
+
+def get_new_catalog_output_path() -> Path:
+    """Get a new versioned output catalog path to prevent overwriting."""
+    out_dir = get_output_dir()
+    base_name = "Catalog"
+    ext = ".pptx"
+    
+    counter = 1
+    while True:
+        path = out_dir / f"{base_name}_v{counter}{ext}"
+        if not path.exists():
+            return path
+        counter += 1
+
+
+def get_latest_catalog_output_path() -> Path:
+    """Get the latest versioned catalog path for downloading."""
+    out_dir = get_output_dir()
+    base_name = "Catalog"
+    ext = ".pptx"
+    
+    # Default path if none exists
+    latest = out_dir / f"{base_name}_v1{ext}"
+    if not latest.exists() and (out_dir / f"{base_name}{ext}").exists():
+        return out_dir / f"{base_name}{ext}"
+        
+    counter = 1
+    while (out_dir / f"{base_name}_v{counter}{ext}").exists():
+        latest = out_dir / f"{base_name}_v{counter}{ext}"
+        counter += 1
+        
+    return latest
 
 
 def save_uploaded_file(file_content: bytes, filename: str) -> str:

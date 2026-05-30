@@ -220,15 +220,28 @@ async def upload_images(files: List[UploadFile] = File(...)):
         }
         r.publish("ws_events", json.dumps(event))
 
-        # Push to Celery queue
-        process_image.delay(job_id, str(save_path))
-
-        logger.info(f"Uploaded and queued: {filename} → job {job_id}")
+        logger.info(f"Uploaded: {filename} → job {job_id}")
 
     return JSONResponse({
         "message": f"Uploaded {len(created_jobs)} images",
         "jobs": created_jobs,
     })
+
+
+@app.post("/start_processing")
+async def start_processing():
+    """Manually start processing all 'uploaded' jobs."""
+    from backend.jobs.tasks import process_image
+    r = get_sync_redis()
+    all_data = r.hgetall("jobs")
+    queued = 0
+    for jid, jdata_str in all_data.items():
+        job = json.loads(jdata_str)
+        if job.get("status") == "uploaded":
+            process_image.delay(jid, job.get("original_path"))
+            queued += 1
+    
+    return {"message": f"Started processing {queued} images", "queued": queued}
 
 
 @app.post("/scan")
@@ -439,12 +452,13 @@ async def preview_catalog(req: GenerateRequest = None):
 @app.get("/download")
 async def download_catalog():
     """Download the generated Catalog.pptx."""
-    catalog_path = Path(OUTPUT_DIR) / "Catalog.pptx"
+    from backend.utils.file_utils import get_latest_catalog_output_path
+    catalog_path = get_latest_catalog_output_path()
     if not catalog_path.exists():
         raise HTTPException(status_code=404, detail="Catalog not yet generated")
     return FileResponse(
         path=str(catalog_path),
-        filename="Catalog.pptx",
+        filename=catalog_path.name,
         media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
     )
 

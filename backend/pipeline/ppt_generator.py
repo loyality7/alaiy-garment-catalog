@@ -18,7 +18,7 @@ from pptx.enum.shapes import MSO_SHAPE
 from PIL import Image
 
 from backend.models.schemas import StyleGroup, ImageJob, SpecData
-from backend.utils.file_utils import get_catalog_output_path, get_reference_ppt
+from backend.utils.file_utils import get_catalog_output_path, get_reference_ppt, get_new_catalog_output_path
 
 logger = logging.getLogger(__name__)
 
@@ -435,7 +435,7 @@ def generate_catalog(
         _add_style_slide(prs, group, jobs, idx, total_styles)
 
     # Save
-    output_path = str(get_catalog_output_path())
+    output_path = str(get_new_catalog_output_path())
     prs.save(output_path)
     logger.info(f"Catalog saved to {output_path}")
 
