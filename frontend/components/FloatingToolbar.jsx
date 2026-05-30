@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * @param {{ onTogglePanel: function, activeView: string | null, isProcessing: boolean }} props
+ */
 export default function FloatingToolbar({ onTogglePanel, activeView, isProcessing }) {
   return (
     <div className="absolute left-3 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 p-2 rounded-xl bg-white/80 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] border border-white/60 z-50">

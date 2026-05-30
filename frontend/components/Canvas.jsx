@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
@@ -9,7 +10,7 @@ import { getThumbnailUrl, deleteJob, overrideClassification, triggerGrouping, tr
  * Canvas — main workspace area that displays style groups as clusters
  * and ungrouped images. Whiteboard-style layout.
  *
- * @param {{ jobs: object, groups: object, onDropImage?: function }} props
+ * @param {{ jobs: object, groups: object, onDropImage?: function, isConnected?: boolean, isProcessing?: boolean, workspaces?: any[], activeWorkspaceIndex?: number, onWorkspaceChange?: function, onAddWorkspace?: function }} props
  */
 export default function Canvas({
   jobs,
@@ -30,7 +31,15 @@ export default function Canvas({
   const [isScanning, setIsScanning] = useState(false);
   const [overrideForm, setOverrideForm] = useState(null);
   const [previewSlides, setPreviewSlides] = useState(null);
+  
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setOverrideForm(null); }, [selectedJob?.id]);
+
+  useEffect(() => {
+    const handleGroupingFinished = () => setIsGrouping(false);
+    window.addEventListener("grouping_finished", handleGroupingFinished);
+    return () => window.removeEventListener("grouping_finished", handleGroupingFinished);
+  }, []);
 
   // Compute stats for button disabled states
   const stats = useMemo(() => {
@@ -46,8 +55,10 @@ export default function Canvas({
   const handleGroup = async () => {
     setIsGrouping(true);
     try { await triggerGrouping(); }
-    catch (err) { console.error("Grouping error:", err); }
-    finally { setTimeout(() => setIsGrouping(false), 2000); }
+    catch (err) { 
+      console.error("Grouping error:", err);
+      setIsGrouping(false);
+    }
   };
 
   const handlePreview = async () => {
@@ -87,6 +98,7 @@ export default function Canvas({
   };
 
   // Sort groups by style number
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const sortedGroups = useMemo(() => {
     return Object.values(groups || {}).sort(
       (a, b) => (a.style_number || 0) - (b.style_number || 0)
@@ -282,6 +294,23 @@ export default function Canvas({
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
         </button>
       </div>
+
+      <div className="w-full text-center py-1 bg-[var(--bg-canvas)]">
+        <span className="text-[10px] text-[var(--text-muted)] opacity-70">
+          Note: Processing the first few images may take up to a minute while the AI models initialize on the backend.
+        </span>
+      </div>
+
+      {/* Lock Overlay during Grouping */}
+      {isGrouping && (
+        <div className="absolute inset-0 z-50 bg-white/40 backdrop-blur-[2px] flex flex-col items-center justify-center">
+          <div className="bg-white px-8 py-6 rounded-2xl shadow-2xl flex flex-col items-center">
+            <div className="w-12 h-12 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin mb-4"></div>
+            <h3 className="text-xl font-bold text-gray-800">Grouping Images</h3>
+            <p className="text-gray-500 mt-2 text-sm">Please wait while the AI clusters the garments...</p>
+          </div>
+        </div>
+      )}
 
       {/* Content area */}
       <div className="flex-1 overflow-y-auto pl-[65px] pr-8 py-6 relative">

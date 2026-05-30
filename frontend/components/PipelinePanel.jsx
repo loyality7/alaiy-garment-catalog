@@ -1,19 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import UploadZone from "./UploadZone";
-
-import { triggerGrouping, triggerGenerate, getDownloadUrl, resetPipeline, scanInputFolder } from "../utils/api";
 
 /**
  * PipelinePanel — left sidebar showing pipeline progress, controls, and upload.
  *
- * @param {{ jobs: object, groups: object, isConnected: boolean, onUploadComplete?: function }} props
+ * @param {{ jobs: object, groups: object, isConnected: boolean, onUploadComplete?: function, activeView?: string | null, onToggle?: function }} props
  */
 export default function PipelinePanel({ jobs, groups, isConnected, onUploadComplete, onToggle, activeView = "stats" }) {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isGrouping, setIsGrouping] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -64,48 +59,6 @@ export default function PipelinePanel({ jobs, groups, isConnected, onUploadCompl
     { key: "failed", label: "Failed", icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, count: stats.failed },
   ];
 
-  const handleGroup = async () => {
-    setIsGrouping(true);
-    try {
-      await triggerGrouping();
-    } catch (err) {
-      console.error("Grouping error:", err);
-    } finally {
-      setTimeout(() => setIsGrouping(false), 2000);
-    }
-  };
-
-  const handleGenerate = async () => {
-    setIsGenerating(true);
-    try {
-      await triggerGenerate();
-    } catch (err) {
-      console.error("Generation error:", err);
-    } finally {
-      setTimeout(() => setIsGenerating(false), 3000);
-    }
-  };
-
-  const handleScan = async () => {
-    setIsScanning(true);
-    try {
-      await scanInputFolder();
-    } catch (err) {
-      console.error("Scan error:", err);
-    } finally {
-      setTimeout(() => setIsScanning(false), 2000);
-    }
-  };
-
-  const handleDownload = () => {
-    window.open(getDownloadUrl(), "_blank");
-  };
-
-  const handleReset = async () => {
-    if (confirm("Reset all jobs and style groups? This cannot be undone.")) {
-      await resetPipeline();
-    }
-  };
 
   return (
     <aside className="w-full h-full flex flex-col bg-transparent overflow-y-auto">
