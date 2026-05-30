@@ -8,7 +8,7 @@ import logging
 import numpy as np
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 import cv2
-from rembg import remove, new_session
+
 
 from backend.models.schemas import ImageType
 
@@ -24,14 +24,19 @@ SPEC_SIZE = (1000, 700)      # Spec labels
 # Configurable max output dimension
 MAX_IMAGE_DIM = int(os.getenv("MAX_IMAGE_DIM", "1000"))
 
-# Cache the U2Net model session globally for the worker process
-# This prevents the massive overhead of loading the ONNX model for every single image
-try:
-    logger.info("Initializing rembg U2Net session...")
-    _rembg_session = new_session("u2net")
-except Exception as e:
-    logger.error(f"Failed to initialize rembg session: {e}")
-    _rembg_session = None
+_rembg_session = None
+
+def get_rembg_session():
+    """Lazily load rembg session only if actually needed."""
+    global _rembg_session
+    if _rembg_session is None:
+        try:
+            from rembg import new_session
+            logger.info("Initializing rembg U2Net session...")
+            _rembg_session = new_session("u2net")
+        except Exception as e:
+            logger.error(f"Failed to initialize rembg session: {e}")
+    return _rembg_session
 
 
 def remove_background(image: Image.Image) -> Image.Image:
@@ -42,7 +47,9 @@ def remove_background(image: Image.Image) -> Image.Image:
     logger.info("Step 1: Removing background...")
 
     # Remove background - returns RGBA image if passed a PIL Image
-    fg_image = remove(image, session=_rembg_session).convert("RGBA")
+    from rembg import remove
+    session = get_rembg_session()
+    fg_image = remove(image, session=session).convert("RGBA")
 
     # Create clean white background
     white_bg = Image.new("RGBA", fg_image.size, (255, 255, 255, 255))
