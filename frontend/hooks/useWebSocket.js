@@ -15,9 +15,12 @@ export default function useWebSocket(url, onMessage) {
   const reconnectTimerRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
   const onMessageRef = useRef(onMessage);
-  onMessageRef.current = onMessage;
 
-  const connect = useCallback(() => {
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+  }, [onMessage]);
+
+  const connect = useCallback(function doConnect() {
     // Clean up existing connection
     if (wsRef.current) {
       wsRef.current.close();
@@ -58,7 +61,7 @@ export default function useWebSocket(url, onMessage) {
           reconnectTimerRef.current = setTimeout(() => {
             console.log("[WS] Attempting reconnect...");
             reconnectTimerRef.current = null;
-            connect();
+            doConnect();
           }, 3000);
         }
       };
@@ -72,7 +75,7 @@ export default function useWebSocket(url, onMessage) {
       if (!reconnectTimerRef.current) {
         reconnectTimerRef.current = setTimeout(() => {
           reconnectTimerRef.current = null;
-          connect();
+          doConnect();
         }, 3000);
       }
     }

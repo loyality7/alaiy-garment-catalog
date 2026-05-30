@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { uploadFiles } from "../utils/api";
+import { uploadFiles, startProcessing } from "../utils/api";
 
 /**
  * UploadZone — drag-drop or file picker for uploading garment images.
@@ -9,13 +9,13 @@ import { uploadFiles } from "../utils/api";
  *
  * @param {{ onUploadComplete?: function }} props
  */
+const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+
 export default function UploadZone({ onUploadComplete }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState([]);
   const fileInputRef = useRef(null);
-
-  const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
 
   const handleFiles = useCallback(async (files) => {
     // Filter to accepted types
@@ -82,6 +82,13 @@ export default function UploadZone({ onUploadComplete }) {
 
     if (onUploadComplete) {
       onUploadComplete();
+    }
+    
+    // Start processing the uploaded batch
+    try {
+      await startProcessing();
+    } catch (err) {
+      console.error("Failed to start processing", err);
     }
   }, [onUploadComplete]);
 
