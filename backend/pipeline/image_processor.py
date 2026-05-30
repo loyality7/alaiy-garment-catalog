@@ -8,7 +8,7 @@ import logging
 import numpy as np
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 import cv2
-from rembg import remove
+from rembg import remove, new_session
 
 from backend.models.schemas import ImageType
 
@@ -24,6 +24,15 @@ SPEC_SIZE = (1000, 700)      # Spec labels
 # Configurable max output dimension
 MAX_IMAGE_DIM = int(os.getenv("MAX_IMAGE_DIM", "1000"))
 
+# Cache the U2Net model session globally for the worker process
+# This prevents the massive overhead of loading the ONNX model for every single image
+try:
+    logger.info("Initializing rembg U2Net session...")
+    _rembg_session = new_session("u2net")
+except Exception as e:
+    logger.error(f"Failed to initialize rembg session: {e}")
+    _rembg_session = None
+
 
 def remove_background(image: Image.Image) -> Image.Image:
     """
@@ -33,7 +42,7 @@ def remove_background(image: Image.Image) -> Image.Image:
     logger.info("Step 1: Removing background...")
 
     # Remove background - returns RGBA image if passed a PIL Image
-    fg_image = remove(image).convert("RGBA")
+    fg_image = remove(image, session=_rembg_session).convert("RGBA")
 
     # Create clean white background
     white_bg = Image.new("RGBA", fg_image.size, (255, 255, 255, 255))
@@ -227,7 +236,7 @@ def process_image(image_path: str, image_type: ImageType) -> bytes:
     # Step 2: Auto-rotate landscape images for garments
     # If the original raw image is landscape, we assume the camera stripped EXIF and it was taken upright.
     # Rotate by -90 (clockwise).
-    if image_type in (ImageType.FRONT, ImageType.BACK) and image.width > image.height:
+    if image_type in (ImageType.FRONT, ImageType.BACK, ImageType.DETAIL) and image.width > image.height:
         logger.info(f"Raw image is landscape ({image.width}x{image.height}). Auto-rotating by -90 degrees.")
         image = image.rotate(-90, expand=True, fillcolor=(255, 255, 255))
 
