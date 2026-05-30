@@ -110,6 +110,9 @@ export default function useWebSocket(url, onMessage) {
         clearTimeout(reconnectTimerRef.current);
       }
       if (wsRef.current) {
+        wsRef.current.onclose = null;
+        wsRef.current.onerror = null;
+        wsRef.current.onmessage = null;
         wsRef.current.close();
       }
     };
