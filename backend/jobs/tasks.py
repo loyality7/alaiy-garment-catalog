@@ -18,11 +18,7 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Preload heavy modules during worker startup to prevent cold-start delays on first tasks
-try:
-    import backend.pipeline.image_processor
-except Exception as e:
-    logger.warning(f"Failed to preload image_processor: {e}")
+
 
 # ── Celery app ──
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
