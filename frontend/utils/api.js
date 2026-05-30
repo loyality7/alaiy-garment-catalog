@@ -1,7 +1,8 @@
 /**
  * API utility for frontend to talk to the FastAPI backend.
- * Bypasses Next.js proxy to avoid body size limits for large files.
+ * Uses Axios for all HTTP communication.
  */
+import axios from 'axios';
 
 // Determine base URL dynamically based on environment or .env
 const getBaseUrl = () => {
@@ -29,102 +30,107 @@ export const getWsUrl = () => {
   return "ws://localhost:8000/ws";
 };
 
+// Create the centralized Axios client
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+// Response interceptor for centralized error handling
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // You can handle global auth errors or toasts here
+    console.error("API Error:", error.response?.data || error.message);
+    return Promise.reject(error);
+  }
+);
+
 /**
  * Upload files to the backend
  */
 export const uploadFiles = async (formData) => {
-  const response = await fetch(`${API_BASE_URL}/upload`, {
-    method: "POST",
-    body: formData,
+  const response = await apiClient.post("/upload", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
   });
+  return response.data;
+};
 
-  if (!response.ok) {
-    throw new Error(`Upload failed: ${response.statusText}`);
-  }
-
-  return response.json();
+/**
+ * Start processing uploaded files
+ */
+export const startProcessing = async () => {
+  const response = await apiClient.post("/start_processing");
+  return response.data;
 };
 
 /**
  * Fetch all jobs
  */
 export const fetchJobs = async () => {
-  const response = await fetch(`${API_BASE_URL}/jobs`);
-  if (!response.ok) throw new Error("Failed to fetch jobs");
-  return response.json();
+  const response = await apiClient.get("/jobs");
+  return response.data;
 };
 
 /**
  * Fetch all style groups
  */
 export const fetchGroups = async () => {
-  const response = await fetch(`${API_BASE_URL}/groups`);
-  if (!response.ok) throw new Error("Failed to fetch groups");
-  return response.json();
+  const response = await apiClient.get("/groups");
+  return response.data;
 };
 
 /**
  * Trigger grouping
  */
 export const triggerGrouping = async () => {
-  const response = await fetch(`${API_BASE_URL}/group`, { method: "POST" });
-  if (!response.ok) throw new Error("Grouping failed");
-  return response.json();
+  const response = await apiClient.post("/group");
+  return response.data;
 };
 
 /**
  * Trigger catalog generation
  */
 export const triggerGenerate = async (groupIds = null) => {
-  const options = { method: "POST" };
-  if (groupIds) {
-    options.headers = { "Content-Type": "application/json" };
-    options.body = JSON.stringify({ group_ids: groupIds });
-  }
-  const response = await fetch(`${API_BASE_URL}/generate`, options);
-  if (!response.ok) throw new Error("Generation failed");
-  return response.json();
+  const data = groupIds ? { group_ids: groupIds } : undefined;
+  const response = await apiClient.post("/generate", data);
+  return response.data;
 };
 
 export const fetchPreview = async (groupIds = null) => {
-  const options = { method: "POST" };
-  if (groupIds) {
-    options.headers = { "Content-Type": "application/json" };
-    options.body = JSON.stringify({ group_ids: groupIds });
-  }
-  const response = await fetch(`${API_BASE_URL}/preview`, options);
-  if (!response.ok) throw new Error("Failed to fetch preview");
-  return response.json();
+  const data = groupIds ? { group_ids: groupIds } : undefined;
+  const response = await apiClient.post("/preview", data);
+  return response.data;
 };
 
 /**
  * Move image between groups
  */
 export const moveImage = async (jobId, targetGroupId) => {
-  const response = await fetch(
-    `${API_BASE_URL}/move-image?job_id=${jobId}&target_group_id=${targetGroupId}`,
-    { method: "POST" }
-  );
-  if (!response.ok) throw new Error("Failed to move image");
-  return response.json();
+  const response = await apiClient.post("/move-image", null, {
+    params: {
+      job_id: jobId,
+      target_group_id: targetGroupId,
+    }
+  });
+  return response.data;
 };
 
 /**
  * Reset pipeline
  */
 export const resetPipeline = async () => {
-  const response = await fetch(`${API_BASE_URL}/reset`, { method: "POST" });
-  if (!response.ok) throw new Error("Failed to reset");
-  return response.json();
+  const response = await apiClient.post("/reset");
+  return response.data;
 };
 
 /**
  * Scan input folder for local images
  */
 export const scanInputFolder = async () => {
-  const response = await fetch(`${API_BASE_URL}/scan`, { method: "POST" });
-  if (!response.ok) throw new Error("Failed to scan folder");
-  return response.json();
+  const response = await apiClient.post("/scan");
+  return response.data;
 };
 
 /**
@@ -145,21 +151,19 @@ export const getDownloadUrl = () => {
  * Delete a job
  */
 export const deleteJob = async (jobId) => {
-  const response = await fetch(`${API_BASE_URL}/job/${jobId}`, { method: "DELETE" });
-  if (!response.ok) throw new Error("Failed to delete job");
-  return response.json();
+  const response = await apiClient.delete(`/job/${jobId}`);
+  return response.data;
 };
 
 /**
  * Override classification for a job
  */
 export const overrideClassification = async (jobId, { image_type, dominant_color, garment_type, pattern }) => {
-  const params = new URLSearchParams({ image_type });
-  if (dominant_color) params.append("dominant_color", dominant_color);
-  if (garment_type) params.append("garment_type", garment_type);
-  if (pattern) params.append("pattern", pattern);
+  const params = { image_type };
+  if (dominant_color) params.dominant_color = dominant_color;
+  if (garment_type) params.garment_type = garment_type;
+  if (pattern) params.pattern = pattern;
 
-  const response = await fetch(`${API_BASE_URL}/job/${jobId}/classify?${params}`, { method: "PATCH" });
-  if (!response.ok) throw new Error("Failed to override classification");
-  return response.json();
+  const response = await apiClient.patch(`/job/${jobId}/classify`, null, { params });
+  return response.data;
 };
