@@ -142,7 +142,6 @@
 **Limitations:**
 - Background removal (`REMOVE_BG=false` by default) — disabled due to quality concerns
 - Deskew step was removed ("incorrectly rotates striped/ribbed garments based on fabric patterns")
-- No orientation correction for DETAIL type
 - Max dimension configurable via `MAX_IMAGE_DIM` env var (default 1000px)
 
 ---
@@ -270,7 +269,6 @@
 - Logo is text ("asmara") rendered with red styling; no actual logo image file included
 - Reference PPT is optional; if missing, default 13.333×7.5 inch dimensions are used
 - Spec data panel may be empty if no spec label was assigned to the group
-- No output versioning
 
 ---
 
