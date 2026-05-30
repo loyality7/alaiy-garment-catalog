@@ -30,6 +30,7 @@
 | React | 19.2.4 | Component rendering | All `.jsx` files |
 | TailwindCSS | 4 | Utility CSS with custom design tokens | `globals.css` + inline classes |
 | TypeScript | 5 | Type safety | `tsconfig.json` config (JSX files used despite config) |
+| Axios | 1.7.9 | HTTP client | `api.js` — all API communication |
 | Geist Fonts | — | Typography | `layout.tsx` via next/font/google |
 | LineIcons | 1.0.6 | SVG icons | Toolbar + action buttons |
 

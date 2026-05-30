@@ -1,0 +1,92 @@
+graph TB
+    subgraph Frontend [Next.js 16 Frontend]
+        UI[React UI]
+        WS[useWebSocket Hook]
+        API[API Client utils/api.js]
+    end
+
+    subgraph Backend [FastAPI Server]
+        REST[REST Endpoints]
+        WSE[WebSocket Endpoint]
+        RM[Redis Pub/Sub Listener]
+        CM[ConnectionManager]
+    end
+
+    subgraph Workers [Celery Workers]
+        T1[process_image Task]
+        T2[run_grouping Task]
+        T3[generate_catalog Task]
+    end
+
+    subgraph Pipeline [Pipeline Modules]
+        CL[classifier.py]
+        IP[image_processor.py]
+        OCR[ocr.py]
+        GR[grouper.py]
+        PPT[ppt_generator.py]
+    end
+
+    subgraph Storage [Redis]
+        KV[Hash: jobs]
+        SG[Key: style_groups]
+        PS[Pub/Sub: ws_events]
+        CB[Celery Broker]
+    end
+
+    subgraph AI [AI Providers]
+        GM[Gemini 2.5 Flash]
+        OR[OpenRouter Fallback]
+    end
+
+    subgraph Files [File System]
+        ID[input/images/]
+        OP[output/processed_images/]
+        PG[output/Processed_Garments/]
+        PPTX[output/Catalog.pptx]
+    end
+
+    UI -->|upload| API
+    API -->|HTTP| REST
+    UI -->|WebSocket| WSE
+    WS -->|connect| WSE
+
+    REST -->|publish event| PS
+    REST -->|store state| KV
+    REST -->|enqueue| CB
+
+    WSE -->|subscribe| PS
+    WSE -->|broadcast| CM
+    CM -->|send_json| WS
+
+    T1 -->|poll| CB
+    T1 -->|read/write| KV
+    T1 -->|process| IP
+    T1 -->|classify| CL
+    T1 -->|extract| OCR
+    T1 -->|publish event| PS
+
+    T2 -->|poll| CB
+    T2 -->|read/write| KV
+    T2 -->|read/write| SG
+    T2 -->|group| GR
+    T2 -->|publish event| PS
+
+    T3 -->|poll| CB
+    T3 -->|read| KV
+    T3 -->|read| SG
+    T3 -->|generate| PPT
+    T3 -->|write| PPTX
+    T3 -->|organize| PG
+    T3 -->|publish event| PS
+
+    CL -->|HTTP| GM
+    CL -->|HTTP| OR
+    OCR -->|HTTP| GM
+    OCR -->|HTTP| OR
+    GR -->|HTTP| GM
+    GR -->|HTTP| OR
+
+    REST -->|read/write| ID
+    REST -->|read| OP
+    T1 -->|write| OP
+    T3 -->|copy| PG
