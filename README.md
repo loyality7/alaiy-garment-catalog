@@ -198,5 +198,3 @@ uploaded → classifying → classified → processing → cleaned → assigned 
 
 - The "asmara" logo in the PowerPoint is rendered as styled text (no logo image file is provided)
 - No automated test suite is present
-- Output versioning is not implemented (repeated generations overwrite the previous `Catalog.pptx`)
-- There is no confirmation dialog for reclassification or grouping override (only for reset and delete)
