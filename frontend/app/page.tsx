@@ -64,6 +64,13 @@ export default function Home() {
         }
         break;
 
+      case "groups_update":
+        // Full groups object updated
+        if (data) {
+          setGroups(data as Record<string, Group>);
+        }
+        break;
+
       case "grouping_complete":
       case "grouping_failed":
         // Style groups updated
