@@ -263,6 +263,7 @@ def run_grouping(self):
                 status=jdata.get("status", "uploaded"),
                 image_type=jdata.get("image_type", "UNKNOWN"),
                 processed_path=jdata.get("processed_path"),
+                workspace_id=jdata.get("workspace_id", "default"),
             )
 
             if jdata.get("classification"):
@@ -289,7 +290,8 @@ def run_grouping(self):
         for jid, job in jobs.items():
             if job.style_group:
                 _update_job_status(jid, "assigned", {
-                    "style_group": job.style_group
+                    "style_group": job.style_group,
+                    "workspace_id": job.workspace_id,
                 })
 
         # Store style groups
@@ -298,6 +300,7 @@ def run_grouping(self):
             groups_dict[gid] = {
                 "id": group.id,
                 "name": group.name,
+                "workspace_id": getattr(group, "workspace_id", "default"),
                 "style_number": group.style_number,
                 "dominant_color": group.dominant_color,
                 "garment_type": group.garment_type,
