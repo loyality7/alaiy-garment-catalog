@@ -169,8 +169,7 @@ Move an image to a different style group (drag-drop support).
 Real-time bidirectional communication.
 
 **On connect:** Server sends `initial_state` with all jobs and groups.
-**Client → Server:** `"ping"` → Server responds `{"event": "pong"}`
-**Server → Client:** Events via Redis pub/sub broadcast — `job_update`, `grouping_*`, `catalog_*`, `image_moved`, `groups_update`, `job_deleted`, `pipeline_reset`, `solo_resolved`, `pong`
+**Server → Client:** Events via Redis pub/sub broadcast — `job_update`, `grouping_*`, `catalog_*`, `image_moved`, `groups_update`, `job_deleted`, `pipeline_reset`, `pong`
 
 ---
 
@@ -247,10 +246,8 @@ uploaded → classifying → classified → processing → cleaned → (assigned
 | Pass | Method | What It Does |
 |------|--------|-------------|
 | 1 | Timestamp gap | Sequential filenames with gaps >60s create new groups |
-| 1.5 | Split | Groups with multiple FRONTs or BACKs split into separate groups |
+| 1.5 | CLIP Similarity Split | Groups with multiple FRONTs/BACKs or low semantic similarity are split into separate groups via PyTorch and HuggingFace CLIP embeddings |
 | 2 | Fuzzy heuristic | Ungrouped images matched by color (>0.7), garment type (>0.6), pattern (>0.5), filename proximity scoring |
-| 3 | AI vision | Solo (single-image) groups checked against neighbor grid to confirm |
-| 4 | AI vision (optional) | Suspicious groups sent to AI for confirmation/splitting (capped at 10) |
 
 ### Matching Criteria
 

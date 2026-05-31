@@ -43,6 +43,7 @@ graph TB
         CL[classifier.py]
         IP[image_processor.py]
         OCR[ocr.py]
+        CE[clip_embedder.py]
         GR[grouper.py]
         PPT[ppt_generator.py]
     end
@@ -120,12 +121,12 @@ graph TB
 | Component | File | Role |
 |-----------|------|------|
 | Page | `page.tsx` | Root component managing application state (jobs, groups), WebSocket message handling, workspace partitioning, undo/redo history. |
-| Canvas | `Canvas.jsx` | Main workspace area with three view modes — Groups, All Images, Ungrouped. Contains action buttons (Scan, Group, Generate, Download, Reset). |
+| Canvas | `Canvas.jsx` | Main workspace area with three view modes — Groups, All Images, Ungrouped. Contains action buttons (Group, Generate, Download). |
 | StyleGroup | `StyleGroup.jsx` | Container for one garment style. Displays group metadata, spec data summary, and image cards. Acts as a drop target for drag-and-drop reassignment. |
 | ImageCard | `ImageCard.jsx` | Single image thumbnail with type badge, confidence score, status badge, classification metadata, and expandable spec data (for SPEC_LABEL type). Implements custom drag ghost. |
-| UploadZone | `UploadZone.jsx` | Drag-drop and file picker upload with per-batch (5 files) progress display. |
+| UploadZone | `UploadZone.jsx` | Drag-drop and file picker upload with per-batch (5 files) progress display and Local Folder Scan button. |
 | PipelinePanel | `PipelinePanel.jsx` | Left sidebar showing pipeline stage counts, progress bar, style group count. |
-| FloatingToolbar | `FloatingToolbar.jsx` | Vertical toolbar with buttons to toggle upload panel and stats panel. |
+| FloatingToolbar | `FloatingToolbar.jsx` | Vertical toolbar with buttons to toggle upload panel, stats panel, and Triage Mode filter. |
 | useWebSocket | `hooks/useWebSocket.js` | Auto-connecting WebSocket with 3-second reconnect and 30-second ping keepalive. |
 | API Client | `utils/api.js` | Functions for all REST endpoints with dynamic base URL resolution. |
 
@@ -145,8 +146,9 @@ graph TB
 | Classifier | `pipeline/classifier.py` | Sends image to Gemini API with a detailed classification prompt. Retries up to 3 times. Resizes images to max 1024px for API efficiency. Parses JSON response into `ClassificationResult`. |
 | Image Processor | `pipeline/image_processor.py` | 5-step processing pipeline: (1) background removal via rembg (disabled by default), (2) auto-rotation of landscape garment images, (3) smart cropping via OpenCV contour detection, (4) brightness/contrast histogram correction, (5) resize (configurable via `MAX_IMAGE_DIM`, default 1000px). |
 | OCR | `pipeline/ocr.py` | Sends spec label images to AI with extraction prompt. Higher resolution (1536px max). Returns `SpecData` with ref_number, fabric_composition, gsm, date, remarks. |
-| Grouper | `pipeline/grouper.py` | 4-pass grouping algorithm: Pass 1 (Timestamp Gap), Pass 1.5 (Split Overloaded), Pass 2 (Heuristic Fuzzy), Pass 3 (AI Vision Solos), Pass 4 (AI Vision Suspicious). |
-| PPT Generator | `pipeline/ppt_generator.py` | Creates PowerPoint using python-pptx. Loads reference PPT for dimensions if available. Generates a cover slide and per-style slides with dark header, cream body, front/back/detail images in framed positions, spec data panel, and footer. |
+| CLIP Embedder | `pipeline/clip_embedder.py` | Generates semantic embeddings for images using HuggingFace's CLIP model (via PyTorch) to determine visual similarity between garments. |
+| Grouper | `pipeline/grouper.py` | Multi-pass grouping algorithm: Pass 1 (Timestamp Gap), Pass 1.5 (CLIP similarity splits), Pass 2 (Heuristic Fuzzy matching). Uses deterministic CLIP embeddings rather than generative AI for stable visual grouping. |
+| PPT Generator | `pipeline/ppt_generator.py` | Creates PowerPoint using python-pptx. Generates a cover slide and per-style slides with dark header (Georgia font), cream body, front/back/detail images in framed positions, spec data panel, and an embedded Asmara logo image. |
 | AI Client | `utils/ai_client.py` | Unified AI vision client supporting Gemini (primary) and OpenRouter (fallback). Handles provider selection, retry logic, and response parsing. |
 | File Utils | `utils/file_utils.py` | File path and I/O helpers: directory management, base64 encoding, file saving, output organization into `Processed_Garments/`. |
 
