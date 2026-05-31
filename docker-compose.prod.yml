@@ -35,7 +35,11 @@ services:
     command: celery -A backend.jobs.tasks worker -P threads --loglevel=info --concurrency=1
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${FRONTEND_API_URL}
+        NEXT_PUBLIC_WS_URL: ${FRONTEND_WS_URL}
     restart: always
     ports:
       - "127.0.0.1:3000:3000"
