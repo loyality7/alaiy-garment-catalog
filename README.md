@@ -2,6 +2,8 @@
 
 An automated end-to-end system that converts raw, unstructured garment photographs into a professional PowerPoint catalog. The pipeline classifies images (front/back/detail/spec label), extracts specification data from labels, removes backgrounds, organizes images into style groups, and generates a ready-to-use catalog presentation.
 
+> 📚 [Documentation](docs/README.md)
+
 ## Quick Start
 
 ```bash
