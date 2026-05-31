@@ -59,6 +59,7 @@ class ImageJob(BaseModel):
     spec_data: Optional[SpecData] = None
     processed_path: Optional[str] = None
     error: Optional[str] = None
+    workspace_id: str = "default"
     created_at: float = Field(default_factory=time.time)
     updated_at: float = Field(default_factory=time.time)
 
@@ -82,6 +83,7 @@ class StyleGroup(BaseModel):
     detail_image_id: Optional[str] = None
     spec_label_id: Optional[str] = None
     spec_data: Optional[SpecData] = None
+    workspace_id: str = "default"
 
 
 class WebSocketMessage(BaseModel):
