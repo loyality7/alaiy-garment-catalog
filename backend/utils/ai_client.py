@@ -29,6 +29,20 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
 
+import asyncio
+
+# Rate limiting
+CLASSIFIER_CONCURRENCY = int(os.getenv("CLASSIFIER_CONCURRENCY", "10"))
+
+def get_semaphore():
+    try:
+        loop = asyncio.get_running_loop()
+        if not hasattr(loop, "_ai_semaphore"):
+            loop._ai_semaphore = asyncio.Semaphore(CLASSIFIER_CONCURRENCY)
+        return loop._ai_semaphore
+    except RuntimeError:
+        return None
+
 
 async def call_vision_model(
     prompt: str,
@@ -44,11 +58,23 @@ async def call_vision_model(
     providers = _get_provider_order()
 
     last_error = None
+    sem = get_semaphore()
+    
     for provider in providers:
         try:
-            result = await _call_provider(
-                provider, prompt, image_data_url, max_tokens, temperature
-            )
+            # Apply rate limiting if we are in an active event loop
+            if sem:
+                async with sem:
+                    await asyncio.sleep(0.5)
+                    result = await _call_provider(
+                        provider, prompt, image_data_url, max_tokens, temperature
+                    )
+            else:
+                await asyncio.sleep(0.5)
+                result = await _call_provider(
+                    provider, prompt, image_data_url, max_tokens, temperature
+                )
+                
             if result:
                 return result
         except Exception as e:

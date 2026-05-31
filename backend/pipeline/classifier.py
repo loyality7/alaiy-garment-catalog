@@ -60,9 +60,15 @@ The classifier does NOT decide which garment a DETAIL belongs to.
 The grouper handles that using filename proximity.
 So always classify zoomed-in shots as DETAIL regardless of what garment it shows.
 
+== BACK VIEW DETECTION — CRITICAL ==
+If you see a polo shirt and the button placket is NOT visible = BACK. Always.
+If collar is visible but folded away from camera with no neck opening = BACK.
+If fabric panel is continuous with no interruption = BACK.
+When in doubt between FRONT and BACK:
+- Can you see buttons? FRONT
+- No buttons visible? BACK
+
 == COMMON MISTAKES TO AVOID ==
-- CRITICAL: A view showing the back of a folded collar with NO buttons/placket visible = BACK.
-- If it's a polo shirt and you do NOT see the front button placket = BACK.
 - A close-up of the collar area (even on a folded shirt) = DETAIL (not FRONT). Only mark FRONT if the entire folded shirt is visible in the frame.
 - A hangtag with text = SPEC_LABEL (not DETAIL)
 - Solid colored shirt with shadow = still "solid" pattern
@@ -137,9 +143,49 @@ async def classify_image(image_path: str) -> ClassificationResult:
             except ValueError:
                 image_type = ImageType.UNKNOWN
     
+            confidence = float(data.get("confidence", 0.5))
+            
+            # Fix 2: Add second classification pass for low confidence
+            if confidence < 0.7:
+                logger.info(f"[{image_path}] Low confidence ({confidence}) for {image_type_str}. Running second pass...")
+                second_prompt = f"""You previously classified this as {image_type_str} with low confidence.
+Look again specifically at:
+1. Are buttons/placket visible? If yes = FRONT
+2. Is this zoomed into one area? If yes = DETAIL  
+3. Is there printed text on a tag? If yes = SPEC_LABEL
+4. None of above = BACK
+Reclassify now.
+
+Respond ONLY with this exact JSON. No markdown. No explanation:
+{{
+  "image_type": "FRONT|BACK|DETAIL|SPEC_LABEL",
+  "confidence": 0.0,
+  "dominant_color": "{data.get('dominant_color', '')}",
+  "garment_type": "{data.get('garment_type', '')}",
+  "pattern": "{data.get('pattern', '')}",
+  "style_name": "{data.get('style_name', '')}"
+}}"""
+                second_content = await call_vision_model(
+                    prompt=second_prompt,
+                    image_data_url=image_data_url,
+                    max_tokens=800,
+                    temperature=0.1,
+                )
+                second_data = parse_json_response(second_content)
+                second_confidence = float(second_data.get("confidence", 0.5))
+                if second_confidence > confidence:
+                    data = second_data
+                    image_type_str = data.get("image_type", "UNKNOWN").upper()
+                    try:
+                        image_type = ImageType(image_type_str)
+                    except ValueError:
+                        image_type = ImageType.UNKNOWN
+                    confidence = second_confidence
+                    logger.info(f"[{image_path}] Second pass updated to {image_type_str} with confidence {confidence}")
+
             return ClassificationResult(
                 image_type=image_type,
-                confidence=float(data.get("confidence", 0.5)),
+                confidence=confidence,
                 dominant_color=data.get("dominant_color", ""),
                 garment_type=data.get("garment_type", ""),
                 pattern=data.get("pattern", ""),

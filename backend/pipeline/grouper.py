@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Minimum confidence threshold for auto-grouping
 MIN_CONFIDENCE = 0.7
-BATCH_GAP_THRESHOLD = int(os.getenv("BATCH_GAP_THRESHOLD", "60"))
+BATCH_GAP_THRESHOLD = int(os.getenv("BATCH_GAP_THRESHOLD", "120"))
 
 def _normalize(text: str) -> str:
     """Normalize text for comparison."""
@@ -377,52 +377,68 @@ async def group_images(jobs: Dict[str, ImageJob], emit_event=None) -> Dict[str, 
     if emit_event:
         emit_event("grouping_pass1_complete", data={"groups": len(style_groups)})
 
-    # --- PASS 1.5: Split Overloaded Groups ---
-    # A group cannot have more than 2 FRONTs or 2 BACKs.
+    # --- PASS 1.5: Reclassify Overloaded Groups ---
+    # If a group has 2+ FRONTs, reclassify the lower confidence one.
+    from backend.pipeline.classifier import classify_image
+    
     for gid, group in list(style_groups.items()):
-        # Check if overloaded
-        types = [jobs[jid].image_type for jid in group.image_ids if jid in jobs]
-        if types.count(ImageType.FRONT) > 2 or types.count(ImageType.BACK) > 2:
-            # Split into chunks that have at most 2 front, 2 back, 2 detail
-            group_jobs = sorted([jobs[jid] for jid in group.image_ids if jid in jobs], key=lambda j: _extract_timestamp(j.filename))
+        front_jobs = [jobs[jid] for jid in group.image_ids if jid in jobs and jobs[jid].image_type == ImageType.FRONT]
+        
+        if len(front_jobs) >= 2:
+            # Sort by confidence ascending (lowest first)
+            front_jobs.sort(key=lambda j: j.classification.confidence if j.classification else 0)
             
-            # Clear the original group
-            group.image_ids = []
-            group.front_image_id = None
-            group.back_image_id = None
-            group.detail_image_id = None
-            group.spec_label_id = None
-            
-            current_split = group
-            front_count = 0
-            back_count = 0
-            detail_count = 0
-            
-            for j in group_jobs:
-                is_front = (j.image_type == ImageType.FRONT)
-                is_back = (j.image_type == ImageType.BACK)
-                is_detail = (j.image_type == ImageType.DETAIL)
+            needs_split = False
+            for bad_front in front_jobs[:-1]:
+                highest_conf = front_jobs[-1].classification.confidence if front_jobs[-1].classification else 0
+                bad_conf = bad_front.classification.confidence if bad_front.classification else 0
                 
-                if (is_front and front_count >= 2) or \
-                   (is_back and back_count >= 2) or \
-                   (is_detail and detail_count >= 2):
-                    # Start a new group
-                    style_counter += 1
-                    current_split = StyleGroup(
-                        name=f"Style {style_counter}",
-                        style_number=style_counter,
-                        dominant_color=group.dominant_color,
-                        garment_type=group.garment_type
-                    )
-                    style_groups[current_split.id] = current_split
-                    front_count = 0
-                    back_count = 0
-                    detail_count = 0
+                if bad_conf > 0.85 and highest_conf > 0.85:
+                    # Both are very confident, they are likely different garments
+                    needs_split = True
+                    continue
                 
-                _add_job_to_group(current_split, j)
-                if is_front: front_count += 1
-                if is_back: back_count += 1
-                if is_detail: detail_count += 1
+                logger.info(f"Pass 1.5: Force reclassifying suspicious FRONT: {bad_front.filename}")
+                try:
+                    new_class = await classify_image(bad_front.original_path)
+                    if new_class.image_type == ImageType.BACK:
+                        logger.info(f"Pass 1.5: Successfully reclassified {bad_front.filename} as BACK")
+                        bad_front.image_type = ImageType.BACK
+                        bad_front.classification = new_class
+                        # Update group slots
+                        if group.front_image_id == bad_front.id:
+                            group.front_image_id = None
+                        if not group.back_image_id:
+                            group.back_image_id = bad_front.id
+                except Exception as e:
+                    logger.error(f"Pass 1.5 reclassify failed: {e}")
+            
+            if needs_split:
+                # If they were both > 0.85, split the group
+                group_jobs = sorted([jobs[jid] for jid in group.image_ids if jid in jobs], key=lambda j: _extract_timestamp(j.filename))
+                group.image_ids = []
+                group.front_image_id = None
+                group.back_image_id = None
+                group.detail_image_id = None
+                group.spec_label_id = None
+                
+                current_split = group
+                front_count = 0
+                for j in group_jobs:
+                    is_front = (j.image_type == ImageType.FRONT)
+                    if is_front and front_count >= 1:
+                        style_counter += 1
+                        current_split = StyleGroup(
+                            name=f"Style {style_counter}",
+                            style_number=style_counter,
+                            dominant_color=group.dominant_color,
+                            garment_type=group.garment_type
+                        )
+                        style_groups[current_split.id] = current_split
+                        front_count = 0
+                    
+                    _add_job_to_group(current_split, j)
+                    if is_front: front_count += 1
 
     # --- PASS 2: Heuristic Fuzzy (Ungrouped Only) ---
     ungrouped_jobs = {jid: j for jid, j in jobs.items() if not j.style_group}
