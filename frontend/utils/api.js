@@ -10,7 +10,7 @@ const getBaseUrl = () => {
     return process.env.NEXT_PUBLIC_API_URL;
   }
   if (typeof window !== "undefined") {
-    return `http://${window.location.hostname}:8000`;
+    return "";
   }
   return "http://localhost:8000";
 };
@@ -25,7 +25,8 @@ export const getWsUrl = () => {
     return process.env.NEXT_PUBLIC_WS_URL;
   }
   if (typeof window !== "undefined") {
-    return `ws://${window.location.hostname}:8000/ws`;
+    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${proto}//${window.location.host}/ws`;
   }
   return "ws://localhost:8000/ws";
 };

@@ -1,0 +1,62 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: always
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: always
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file: ./backend/.env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - input_data:/app/input
+      - output_data:/app/output
+      - huggingface_cache:/home/appuser/.cache/huggingface
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+  celery_worker:
+    build: ./backend
+    restart: always
+    env_file: ./backend/.env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - input_data:/app/input
+      - output_data:/app/output
+      - huggingface_cache:/home/appuser/.cache/huggingface
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: celery -A backend.jobs.tasks worker -P threads --loglevel=info --concurrency=1
+
+  frontend:
+    build: ./frontend
+    restart: always
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  redis_data:
+  input_data:
+  output_data:
+  huggingface_cache:

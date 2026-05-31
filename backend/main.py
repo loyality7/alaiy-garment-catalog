@@ -138,6 +138,11 @@ def get_sync_redis() -> sync_redis.Redis:
 
 from fastapi import Form
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for container orchestration."""
+    return {"status": "ok"}
+
 @app.post("/upload")
 async def upload_images(
     files: List[UploadFile] = File(...)
