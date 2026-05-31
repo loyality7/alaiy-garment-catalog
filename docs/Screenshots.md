@@ -1,7 +1,6 @@
 # Visual Walkthrough
 
-![Demo](./docs/Screenshots/demo.gif)
-
+![Demo](./Screenshots/demo.gif)
 
 ### Empty View
 ![Empty View](Screenshots/00_Empty_View.png)
