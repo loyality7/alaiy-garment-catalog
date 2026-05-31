@@ -77,18 +77,18 @@ export default function StyleGroup({ group, jobs, onImageClick, onDropImage }) {
       onDrop={handleDrop}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2.5">
+      <div className="flex items-start justify-between mb-3 gap-2">
+        <div className="flex items-start gap-2.5 flex-1 min-w-0">
           {/* Style number */}
-          <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-[var(--accent-subtle)] text-[var(--accent)] text-xs font-bold">
+          <span className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-lg bg-[var(--accent-subtle)] text-[var(--accent)] text-xs font-bold mt-0.5">
             {group.style_number || "?"}
           </span>
 
-          <div>
-            <h3 className="text-sm font-semibold text-[var(--text-primary)] leading-tight">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-semibold text-[var(--text-primary)] leading-tight break-words">
               {group.name || `Style ${group.style_number || "?"}`}
             </h3>
-            <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
+            <p className="text-[10px] text-[var(--text-muted)] mt-1 truncate">
               {group.garment_type && <span>{group.garment_type}</span>}
               {group.dominant_color && <span> · {group.dominant_color}</span>}
               {group.pattern && group.pattern !== "solid" && <span> · {group.pattern}</span>}
@@ -97,11 +97,11 @@ export default function StyleGroup({ group, jobs, onImageClick, onDropImage }) {
         </div>
 
         {/* Slot indicators */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
           {["front", "back", "detail", "spec"].map((slot) => (
             <div
               key={slot}
-              className={`tooltip w-5 h-5 rounded flex items-center justify-center text-[8px] font-bold uppercase ${
+              className={`tooltip w-5 h-5 md:w-6 md:h-6 rounded flex items-center justify-center text-[8px] md:text-[9px] font-bold uppercase ${
                 slots[slot]
                   ? "bg-[var(--accent-subtle)] text-[var(--accent)]"
                   : "bg-[var(--bg-surface)] text-[var(--text-muted)]"

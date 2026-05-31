@@ -206,8 +206,7 @@ export default function Canvas({
               }`}
           >
             <svg className="w-3 md:w-3.5 h-3 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
-            <span className="hidden md:inline">Groups</span>
-            <span className="md:hidden">Grp</span>
+            <span>Groups</span>
           </button>
           <button
             onClick={() => setViewMode("all")}
@@ -227,8 +226,7 @@ export default function Canvas({
               }`}
           >
             <svg className="w-3 md:w-3.5 h-3 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <span className="hidden md:inline">Ungrouped</span>
-            <span className="md:hidden">Un</span>
+            <span>Ungrouped</span>
             {ungroupedJobs.length > 0 && (
               <span className="ml-1 px-1 md:ml-1.5 md:px-1.5 py-0.5 rounded-full bg-[var(--error)] text-white text-[8px] md:text-[10px] font-bold leading-none">{ungroupedJobs.length}</span>
             )}
@@ -252,8 +250,7 @@ export default function Canvas({
               <span className="absolute -top-1 -right-1 w-2 h-2 md:w-2.5 md:h-2.5 bg-[var(--accent)] rounded-full" />
             )}
             <svg className="w-3 md:w-3.5 h-3 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-            <span className="hidden md:inline">{isGrouping ? "Grouping..." : "Group"}</span>
-            <span className="md:hidden">Grp</span>
+            <span>{isGrouping ? "Grouping..." : "Group"}</span>
           </button>
           <button
             onClick={handlePreview}
@@ -261,8 +258,7 @@ export default function Canvas({
             className="px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold rounded-md border border-[var(--border)] bg-white text-black hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors disabled:opacity-50 flex items-center gap-1 md:gap-1.5 shadow-sm"
           >
             <svg className="w-3 md:w-3.5 h-3 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-            <span className="hidden md:inline">Preview</span>
-            <span className="md:hidden">Pre</span>
+            <span>Preview</span>
           </button>
 
           
@@ -273,8 +269,7 @@ export default function Canvas({
               className="px-2 md:px-4 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold rounded-md bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 flex items-center gap-1 md:gap-1.5 shadow-sm"
             >
               <svg className="w-3 md:w-3.5 h-3 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-              <span className="hidden md:inline">{isGenerating ? "Generating..." : "Generate Catalog"}</span>
-              <span className="md:hidden">Gen</span>
+              <span>{isGenerating ? "Generating..." : "Generate Catalog"}</span>
               {workspaces.length > 1 && (
                 <svg className={`w-3 md:w-3.5 h-3 md:h-3.5 ml-0.5 transition-transform ${generateMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               )}
