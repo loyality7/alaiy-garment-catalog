@@ -58,9 +58,20 @@ export default function StyleGroup({ group, jobs, onImageClick, onDropImage }) {
     }
   };
 
+  // Determine if group needs review
+  const getWarningBorder = () => {
+    const fronts = groupJobs.filter(j => j.image_type === "FRONT").length;
+    const backs = groupJobs.filter(j => j.image_type === "BACK").length;
+    
+    if (fronts === 0) return "border-red-500 border-2";
+    if (groupJobs.length === 1) return "border-yellow-500 border-2";
+    if (fronts > 1 || backs > 1) return "border-orange-500 border-2";
+    return "";
+  };
+
   return (
     <div
-      className={`style-group p-4 animate-scale-in ${isProcessing ? "is-processing" : ""} ${isDragOver ? "border-[var(--accent)] bg-[var(--accent-subtle)]" : ""}`}
+      className={`style-group p-4 animate-scale-in ${getWarningBorder()} ${isProcessing ? "is-processing" : ""} ${isDragOver ? "border-[var(--accent)] bg-[var(--accent-subtle)]" : ""}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
