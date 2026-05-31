@@ -320,10 +320,10 @@ export default function Home() {
 
       {/* Ready to Group Toast Popup */}
       <div className={`absolute top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-500 transform ${showReadyToast ? 'translate-y-0 opacity-100' : '-translate-y-20 opacity-0'}`}>
-        <div className="bg-[#00d084] text-white px-6 py-3 rounded-full shadow-lg font-medium flex items-center gap-3">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-          All images processed! Ready to group.
-          <button onClick={() => setShowReadyToast(false)} className="ml-2 hover:bg-black/10 rounded-full p-1 transition-colors">
+        <div className="bg-[#00d084] text-white mx-3 px-4 md:px-6 py-2 md:py-3 rounded-full shadow-lg font-medium flex items-center gap-2 md:gap-3 text-xs md:text-sm whitespace-nowrap">
+          <svg className="w-4 md:w-5 h-4 md:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+          <span className="truncate">All images processed! Ready to group.</span>
+          <button onClick={() => setShowReadyToast(false)} className="ml-1 md:ml-2 hover:bg-black/10 rounded-full p-1 transition-colors flex-shrink-0">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
