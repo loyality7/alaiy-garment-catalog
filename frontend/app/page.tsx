@@ -12,6 +12,7 @@ export interface Job {
   status: string;
   created_at: number;
   style_group?: string | null;
+  workspace_id?: string;
 }
 
 export interface Group {
@@ -22,6 +23,7 @@ export interface Group {
   detail_image_id?: string | null;
   spec_label_id?: string | null;
   style_number?: number;
+  workspace_id?: string;
 }
 
 interface MoveHistoryItem {
@@ -239,27 +241,25 @@ export default function Home() {
     );
   }, [jobs]);
 
-  // Derive Workspaces based on upload time gaps (> 60s)
+  // Derive Workspaces based on workspace_id
   const [activeWorkspaceIndex, setActiveWorkspaceIndex] = useState(0);
   const [manualWorkspaceCount, setManualWorkspaceCount] = useState(0);
 
   const workspaces = useMemo(() => {
     const allJobs = Object.values(jobs).sort((a, b) => a.created_at - b.created_at);
-    const spaces: Job[][] = [];
-    let currentSpace: Job[] = [];
-    let lastTime = 0;
+    const spacesMap: Record<string, Job[]> = {};
+    const workspaceOrder: string[] = [];
 
     for (const job of allJobs) {
-      if (lastTime === 0 || (job.created_at - lastTime) > 60) {
-        if (currentSpace.length > 0) spaces.push(currentSpace);
-        currentSpace = [job];
-      } else {
-        currentSpace.push(job);
+      const wid = job.workspace_id || "default";
+      if (!spacesMap[wid]) {
+        spacesMap[wid] = [];
+        workspaceOrder.push(wid);
       }
-      lastTime = job.created_at;
+      spacesMap[wid].push(job);
     }
-    if (currentSpace.length > 0) spaces.push(currentSpace);
-
+    
+    const spaces = workspaceOrder.map(wid => spacesMap[wid]);
     const baseSpaces = spaces.length > 0 ? spaces : [[]];
 
     // Append manually created workspaces
@@ -357,6 +357,7 @@ export default function Home() {
         <Canvas
           jobs={activeJobs}
           groups={activeGroups}
+          allGroups={groups}
           onDropImage={handleDropImage}
           isConnected={isConnected}
           isProcessing={isProcessing}

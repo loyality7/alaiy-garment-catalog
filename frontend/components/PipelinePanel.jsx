@@ -35,7 +35,13 @@ export default function PipelinePanel({ jobs, groups, isConnected, onUploadCompl
     return counts;
   }, [jobs]);
 
-  const groupCount = Object.keys(groups || {}).length;
+  const groupCount = useMemo(() => {
+    const usedGroupIds = new Set();
+    Object.values(jobs || {}).forEach(job => {
+      if (job.style_group) usedGroupIds.add(job.style_group);
+    });
+    return Object.keys(groups || {}).filter(id => usedGroupIds.has(id)).length;
+  }, [jobs, groups]);
 
   // Overall progress percentage
   const progressPct = useMemo(() => {

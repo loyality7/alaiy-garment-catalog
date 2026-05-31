@@ -10,11 +10,12 @@ import { getThumbnailUrl, deleteJob, overrideClassification, triggerGrouping, tr
  * Canvas — main workspace area that displays style groups as clusters
  * and ungrouped images. Whiteboard-style layout.
  *
- * @param {{ jobs: object, groups: object, onDropImage?: function, isConnected?: boolean, isProcessing?: boolean, workspaces?: any[], activeWorkspaceIndex?: number, onWorkspaceChange?: function, onAddWorkspace?: function }} props
+ * @param {{ jobs: object, groups: object, allGroups?: object, onDropImage?: function, isConnected?: boolean, isProcessing?: boolean, workspaces?: any[], activeWorkspaceIndex?: number, onWorkspaceChange?: function, onAddWorkspace?: function }} props
  */
 export default function Canvas({
   jobs,
   groups,
+  allGroups = {},
   onDropImage,
   isConnected,
   isProcessing,
@@ -29,6 +30,8 @@ export default function Canvas({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGrouping, setIsGrouping] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [generateMenuOpen, setGenerateMenuOpen] = useState(false);
+  const [selectedWorkspacesToGenerate, setSelectedWorkspacesToGenerate] = useState(new Set([0]));
   const [overrideForm, setOverrideForm] = useState(null);
   const [previewSlides, setPreviewSlides] = useState(null);
   
@@ -69,14 +72,49 @@ export default function Canvas({
     } catch (err) { console.error("Preview error:", err); }
   };
 
-  const handleGenerate = async () => {
+  const handleGenerateCurrent = async () => {
     setIsGenerating(true);
+    setGenerateMenuOpen(false);
     try {
       const groupIds = sortedGroups.map(g => g.id);
       await triggerGenerate(groupIds);
     }
     catch (err) { console.error("Generation error:", err); }
     finally { setTimeout(() => setIsGenerating(false), 3000); }
+  };
+
+  const handleGenerateMulti = async () => {
+    setIsGenerating(true);
+    setGenerateMenuOpen(false);
+    try {
+      const selectedJobIds = new Set();
+      selectedWorkspacesToGenerate.forEach(idx => {
+        const wsJobs = workspaces[idx] || [];
+        wsJobs.forEach(j => selectedJobIds.add(j.id));
+      });
+      
+      const targetGroupIds = new Set();
+      Object.values(allGroups).forEach(g => {
+        const hasSelectedJob = (g.image_ids || []).some(id => selectedJobIds.has(id));
+        if (hasSelectedJob) {
+          targetGroupIds.add(g.id);
+        }
+      });
+      
+      await triggerGenerate(Array.from(targetGroupIds));
+    } catch (err) {
+      console.error("Generation error:", err);
+    } finally {
+      setTimeout(() => setIsGenerating(false), 3000);
+    }
+  };
+
+  const handleGenerateClick = () => {
+    if (workspaces.length > 1) {
+      setGenerateMenuOpen(!generateMenuOpen);
+    } else {
+      handleGenerateCurrent();
+    }
   };
 
   const handleScan = async () => {
@@ -220,14 +258,63 @@ export default function Canvas({
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
             Preview
           </button>
-          <button
-            onClick={handleGenerate}
-            disabled={isGenerating || sortedGroups.length === 0}
-            className="px-4 py-1.5 text-xs font-semibold rounded-md bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-            {isGenerating ? "Generating..." : "Generate Catalog"}
-          </button>
+          <div className="relative flex items-center">
+            <button
+              onClick={handleGenerateClick}
+              disabled={isGenerating || sortedGroups.length === 0}
+              className="px-4 py-1.5 text-xs font-semibold rounded-md bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+              {isGenerating ? "Generating..." : "Generate Catalog"}
+              {workspaces.length > 1 && (
+                <svg className={`w-3.5 h-3.5 ml-0.5 transition-transform ${generateMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              )}
+            </button>
+            
+            {generateMenuOpen && workspaces.length > 1 && (
+              <div className="absolute top-full right-0 mt-1 w-56 bg-white rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.15)] border border-gray-100 overflow-hidden z-50 flex flex-col">
+                <div className="p-2 border-b border-gray-100 bg-gray-50 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  Select Workspaces
+                </div>
+                <div className="max-h-48 overflow-y-auto p-1">
+                  {workspaces.map((ws, i) => (
+                    <label key={i} className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-50 cursor-pointer rounded">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedWorkspacesToGenerate.has(i)}
+                        onChange={(e) => {
+                          const newSet = new Set(selectedWorkspacesToGenerate);
+                          if (e.target.checked) newSet.add(i);
+                          else newSet.delete(i);
+                          setSelectedWorkspacesToGenerate(newSet);
+                        }}
+                        className="rounded border-gray-300 text-[var(--accent)] focus:ring-[var(--accent)]"
+                      />
+                      <span>Workspace {i + 1} ({ws.length} imgs)</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="p-2 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2">
+                  <button 
+                    onClick={() => {
+                      const all = new Set(workspaces.map((_, i) => i));
+                      setSelectedWorkspacesToGenerate(all);
+                    }}
+                    className="text-[10px] text-[var(--accent)] hover:text-[var(--accent-hover)] font-medium"
+                  >
+                    Select All
+                  </button>
+                  <button 
+                    onClick={handleGenerateMulti}
+                    disabled={selectedWorkspacesToGenerate.size === 0}
+                    className="px-3 py-1 bg-[var(--accent)] text-white text-[11px] font-medium rounded hover:bg-[var(--accent-hover)] disabled:opacity-50 transition-colors"
+                  >
+                    Generate Selected
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           {stats.ppt_ready > 0 && !isGenerating && (
             <button
               onClick={handleDownload}
@@ -344,9 +431,9 @@ export default function Canvas({
           <div>
             {/* Style groups */}
             {sortedGroups.length > 0 && (
-              <div className="flex flex-wrap justify-center gap-5 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 items-start mb-8 w-full">
                 {sortedGroups.map((group) => (
-                  <div key={group.id} className="w-[380px] flex-shrink-0">
+                  <div key={group.id} className="w-full">
                     <StyleGroup
                       group={group}
                       jobs={jobs}

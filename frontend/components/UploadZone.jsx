@@ -32,6 +32,7 @@ export default function UploadZone({ onUploadComplete }) {
 
     // Upload in batches of 5
     const batchSize = 5;
+
     for (let i = 0; i < validFiles.length; i += batchSize) {
       const batch = validFiles.slice(i, i + batchSize);
 
