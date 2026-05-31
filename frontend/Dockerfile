@@ -12,8 +12,8 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-RUN addgroup --system --gid 1001 nodegroup && \
-    adduser --system --uid 1001 --gid 1001 nodeuser
+RUN addgroup -S nodegroup && \
+    adduser -S nodeuser -G nodegroup -u 1001
 
 ENV NODE_ENV=production
 
