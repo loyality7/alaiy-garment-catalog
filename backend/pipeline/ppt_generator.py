@@ -314,10 +314,7 @@ def _add_style_slide(
 
     y_offset = spec_top
     for label, value in spec_fields:
-        if not value:
-            continue
-
-        # Label
+        # Label (Always render)
         label_box = slide.shapes.add_textbox(
             Inches(8.7), y_offset, Inches(1.2), Inches(0.25)
         )
@@ -330,16 +327,17 @@ def _add_style_slide(
         p.font.name = "Arial"
 
         # Value
-        val_box = slide.shapes.add_textbox(
-            Inches(10.0), y_offset, Inches(3.0), Inches(0.25)
-        )
-        tf = val_box.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
-        p.text = value
-        p.font.size = Pt(8)
-        p.font.color.rgb = DARK_TEXT
-        p.font.name = "Arial"
+        if value:
+            val_box = slide.shapes.add_textbox(
+                Inches(10.0), y_offset, Inches(3.0), Inches(0.25)
+            )
+            tf = val_box.text_frame
+            tf.word_wrap = True
+            p = tf.paragraphs[0]
+            p.text = value
+            p.font.size = Pt(8)
+            p.font.color.rgb = DARK_TEXT
+            p.font.name = "Arial"
 
         y_offset += Inches(0.28)
 
