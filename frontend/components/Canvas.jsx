@@ -10,7 +10,7 @@ import { getThumbnailUrl, deleteJob, overrideClassification, triggerGrouping, tr
  * Canvas — main workspace area that displays style groups as clusters
  * and ungrouped images. Whiteboard-style layout.
  *
- * @param {{ jobs: object, groups: object, allGroups?: object, onDropImage?: function, isConnected?: boolean, isProcessing?: boolean, workspaces?: any[], activeWorkspaceIndex?: number, onWorkspaceChange?: function, onAddWorkspace?: function }} props
+ * @param {{ jobs: object, groups: object, allGroups?: object, onDropImage?: function, isConnected?: boolean, isProcessing?: boolean, workspaces?: any[], activeWorkspaceIndex?: number, onWorkspaceChange?: function, onAddWorkspace?: function, showFlaggedOnly?: boolean }} props
  */
 export default function Canvas({
   jobs,
@@ -22,7 +22,8 @@ export default function Canvas({
   workspaces = [],
   activeWorkspaceIndex = 0,
   onWorkspaceChange,
-  onAddWorkspace
+  onAddWorkspace,
+  showFlaggedOnly: showFlaggedOnlyProp
 }) {
   const [selectedJob, setSelectedJob] = useState(null);
   const [viewMode, setViewMode] = useState("groups"); // "groups" | "all" | "ungrouped"
@@ -34,7 +35,8 @@ export default function Canvas({
   const [selectedWorkspacesToGenerate, setSelectedWorkspacesToGenerate] = useState(new Set([0]));
   const [overrideForm, setOverrideForm] = useState(null);
   const [previewSlides, setPreviewSlides] = useState(null);
-  const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
+  const [localShowFlaggedOnly, setLocalShowFlaggedOnly] = useState(false);
+  const showFlaggedOnly = showFlaggedOnlyProp ?? localShowFlaggedOnly;
   
   // Helper to determine if a group needs review
   const getGroupWarning = (group, jobs) => {
