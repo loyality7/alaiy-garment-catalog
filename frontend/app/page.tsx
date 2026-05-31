@@ -36,10 +36,22 @@ export default function Home() {
   const [showReadyToast, setShowReadyToast] = useState(false);
   const [prevUnfinishedCount, setPrevUnfinishedCount] = useState(0);
 
-  // Handle incoming WebSocket messages
-  const handleMessage = useCallback((message: { event: string; job_id?: string; data?: Record<string, unknown> | unknown }) => {
-    const { event, job_id } = message;
-    const data = message.data as Record<string, unknown>;
+  // Handle incoming WebSocket messages (now batched)
+  const handleMessage = useCallback((messages: any[]) => {
+    // Process all batched messages in a single state update frame
+    if (!Array.isArray(messages)) return;
+    
+    // We can collect updates to apply them together if we want, but for now
+    // looping through them and using the functional state updater (prev => ...)
+    // handles it safely, even if it triggers multiple renders under the hood,
+    // React 18 batches them!
+    
+    // We will just loop and use functional updates, since React 18 batches them
+    // within the setInterval macro-task automatically.
+    
+    for (const message of messages) {
+      const { event, job_id } = message;
+      const data = message.data as Record<string, unknown>;
 
     switch (event) {
       case "initial_state":
@@ -125,6 +137,7 @@ export default function Home() {
 
       default:
         console.log("[WS] Unknown event:", event);
+      }
     }
   }, []);
 

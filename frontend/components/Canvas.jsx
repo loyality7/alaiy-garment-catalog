@@ -304,8 +304,19 @@ export default function Canvas({
       {/* Lock Overlay during Grouping */}
       {isGrouping && (
         <div className="absolute inset-0 z-50 bg-white/40 backdrop-blur-[2px] flex flex-col items-center justify-center">
-          <div className="bg-white px-8 py-6 rounded-2xl shadow-2xl flex flex-col items-center">
-            <div className="w-12 h-12 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin mb-4"></div>
+          <div className="bg-white px-8 py-8 rounded-2xl shadow-2xl flex flex-col items-center">
+            {/* From Uiverse.io by Nawsome */}
+            <div className="banter-loader">
+              <div className="banter-loader__box"></div>
+              <div className="banter-loader__box"></div>
+              <div className="banter-loader__box"></div>
+              <div className="banter-loader__box"></div>
+              <div className="banter-loader__box"></div>
+              <div className="banter-loader__box"></div>
+              <div className="banter-loader__box"></div>
+              <div className="banter-loader__box"></div>
+              <div className="banter-loader__box"></div>
+            </div>
             <h3 className="text-xl font-bold text-gray-800">Grouping Images</h3>
             <p className="text-gray-500 mt-2 text-sm">Please wait while the AI clusters the garments...</p>
           </div>

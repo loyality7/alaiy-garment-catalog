@@ -16,9 +16,25 @@ export default function useWebSocket(url, onMessage) {
   const [isConnected, setIsConnected] = useState(false);
   const onMessageRef = useRef(onMessage);
 
+  const bufferRef = useRef([]);
+
   useEffect(() => {
     onMessageRef.current = onMessage;
   }, [onMessage]);
+
+  // Buffer flush interval
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (bufferRef.current.length > 0) {
+        if (onMessageRef.current) {
+          // Pass the entire buffer array to the handler
+          onMessageRef.current(bufferRef.current);
+        }
+        bufferRef.current = [];
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
 
   const connect = useCallback(function doConnect() {
     // Clean up existing connection
@@ -43,9 +59,7 @@ export default function useWebSocket(url, onMessage) {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (onMessageRef.current) {
-            onMessageRef.current(data);
-          }
+          bufferRef.current.push(data);
         } catch (err) {
           console.error("[WS] Failed to parse message:", err);
         }
