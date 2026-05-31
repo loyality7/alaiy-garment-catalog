@@ -368,7 +368,6 @@ export default function Home() {
           activeWorkspaceIndex={activeWorkspaceIndex}
           onWorkspaceChange={setActiveWorkspaceIndex}
           onAddWorkspace={() => setManualWorkspaceCount(c => c + 1)}
-          showFlaggedOnly={showFlaggedOnly}
         />
       </div>
     </div>
