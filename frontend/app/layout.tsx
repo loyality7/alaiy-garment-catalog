@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -16,6 +16,12 @@ export const metadata: Metadata = {
   title: "Alaiy Garment Catalog | Automated Pipeline",
   description:
     "Full-stack automated garment catalog builder. Upload raw garment photos, classify, group, clean, extract specs, and generate professional PowerPoint catalogs in real-time.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({

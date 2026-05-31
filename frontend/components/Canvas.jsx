@@ -179,10 +179,10 @@ export default function Canvas({
   return (
     <div className="flex-1 h-full flex flex-col overflow-hidden canvas-grid">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-black/10 bg-[var(--bg-primary)] relative z-20 shadow-sm">
-        <div className="flex items-center gap-6">
-          <div className="flex items-baseline gap-4">
-            <h2 className="text-lg font-bold text-[var(--text-primary)] m-0">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 md:px-6 py-2 md:py-4 border-b border-black/10 bg-[var(--bg-primary)] relative z-20 shadow-sm">
+        <div className="flex items-center gap-2 md:gap-6">
+          <div className="flex items-baseline gap-2 md:gap-4">
+            <h2 className="text-sm md:text-lg font-bold text-[var(--text-primary)] m-0">
               Workspace
             </h2>
             <div className="flex items-center gap-1.5 ml-2">
@@ -197,68 +197,72 @@ export default function Canvas({
         </div>
 
         {/* View mode toggle */}
-        <div className="flex items-center bg-[var(--bg-secondary)] rounded-full p-1 border border-[var(--border)]">
+        <div className="flex items-center bg-[var(--bg-secondary)] rounded-full p-0.5 md:p-1 border border-[var(--border)]">
           <button
             onClick={() => setViewMode("groups")}
-            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-2 ${viewMode === "groups"
+            className={`px-2 md:px-4 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold rounded-full transition-all flex items-center gap-1 md:gap-2 ${viewMode === "groups"
                 ? "bg-white text-[var(--accent)] shadow-sm"
                 : "text-black hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]"
               }`}
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
-            Groups
+            <svg className="w-3 md:w-3.5 h-3 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+            <span className="hidden md:inline">Groups</span>
+            <span className="md:hidden">Grp</span>
           </button>
           <button
             onClick={() => setViewMode("all")}
-            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-2 ${viewMode === "all"
+            className={`px-2 md:px-4 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold rounded-full transition-all flex items-center gap-1 md:gap-2 ${viewMode === "all"
                 ? "bg-white text-[var(--info)] shadow-sm"
                 : "text-black hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]"
               }`}
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-            All Images
+            <svg className="w-3 md:w-3.5 h-3 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+            All
           </button>
           <button
             onClick={() => setViewMode("ungrouped")}
-            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-2 ${viewMode === "ungrouped"
+            className={`px-2 md:px-4 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold rounded-full transition-all flex items-center gap-1 md:gap-2 ${viewMode === "ungrouped"
                 ? "bg-white text-[var(--error)] shadow-sm"
                 : "text-black hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]"
               }`}
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            Ungrouped
+            <svg className="w-3 md:w-3.5 h-3 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span className="hidden md:inline">Ungrouped</span>
+            <span className="md:hidden">Un</span>
             {ungroupedJobs.length > 0 && (
-              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-[var(--error)] text-white text-[10px] font-bold leading-none">{ungroupedJobs.length}</span>
+              <span className="ml-1 px-1 md:ml-1.5 md:px-1.5 py-0.5 rounded-full bg-[var(--error)] text-white text-[8px] md:text-[10px] font-bold leading-none">{ungroupedJobs.length}</span>
             )}
           </button>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 md:gap-3">
           <button
             onClick={handleGroup}
             disabled={isGrouping || isProcessing || stats.cleaned === 0}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md border transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 relative ${stats.cleaned > 0 && !isProcessing
+            className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold rounded-md border transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 md:gap-1.5 relative ${stats.cleaned > 0 && !isProcessing
                 ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)] shadow-[0_0_12px_rgba(236,72,153,0.4)]"
                 : "border-[var(--border)] bg-white text-black shadow-sm"
               }`}
           >
             {stats.cleaned > 0 && !isProcessing && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[var(--accent)] rounded-full animate-ping" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 md:w-2.5 md:h-2.5 bg-[var(--accent)] rounded-full animate-ping" />
             )}
             {stats.cleaned > 0 && !isProcessing && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[var(--accent)] rounded-full" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 md:w-2.5 md:h-2.5 bg-[var(--accent)] rounded-full" />
             )}
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-            {isGrouping ? "Grouping..." : "Group"}
+            <svg className="w-3 md:w-3.5 h-3 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+            <span className="hidden md:inline">{isGrouping ? "Grouping..." : "Group"}</span>
+            <span className="md:hidden">Grp</span>
           </button>
           <button
             onClick={handlePreview}
             disabled={sortedGroups.length === 0}
-            className="px-3 py-1.5 text-xs font-semibold rounded-md border border-[var(--border)] bg-white text-black hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+            className="px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold rounded-md border border-[var(--border)] bg-white text-black hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors disabled:opacity-50 flex items-center gap-1 md:gap-1.5 shadow-sm"
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-            Preview
+            <svg className="w-3 md:w-3.5 h-3 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+            <span className="hidden md:inline">Preview</span>
+            <span className="md:hidden">Pre</span>
           </button>
 
           
@@ -266,12 +270,13 @@ export default function Canvas({
             <button
               onClick={handleGenerateClick}
               disabled={isGenerating || sortedGroups.length === 0}
-              className="px-4 py-1.5 text-xs font-semibold rounded-md bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+              className="px-2 md:px-4 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold rounded-md bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 flex items-center gap-1 md:gap-1.5 shadow-sm"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-              {isGenerating ? "Generating..." : "Generate Catalog"}
+              <svg className="w-3 md:w-3.5 h-3 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+              <span className="hidden md:inline">{isGenerating ? "Generating..." : "Generate Catalog"}</span>
+              <span className="md:hidden">Gen</span>
               {workspaces.length > 1 && (
-                <svg className={`w-3.5 h-3.5 ml-0.5 transition-transform ${generateMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <svg className={`w-3 md:w-3.5 h-3 md:h-3.5 ml-0.5 transition-transform ${generateMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               )}
             </button>
             
@@ -322,27 +327,28 @@ export default function Canvas({
           {stats.ppt_ready > 0 && !isGenerating && (
             <button
               onClick={handleDownload}
-              className="px-3 py-1.5 text-xs font-semibold rounded-md border border-[var(--success)] text-[var(--success)] hover:bg-[var(--success)] hover:text-white transition-colors flex items-center gap-1.5"
+              className="px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold rounded-md border border-[var(--success)] text-[var(--success)] hover:bg-[var(--success)] hover:text-white transition-colors flex items-center gap-1 md:gap-1.5"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-              Download
+              <svg className="w-3 md:w-3.5 h-3 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+              <span className="hidden md:inline">Download</span>
+              <span className="md:hidden">Dl</span>
             </button>
           )}
           {Object.keys(jobs).length > 0 && (
             <button
               onClick={handleReset}
-              className="flex flex-col items-center justify-center px-3 py-1 text-black hover:text-[var(--error)] hover:bg-[var(--error)]/10 rounded-lg transition-colors"
+              className="flex flex-col items-center justify-center px-1 md:px-3 py-1 text-black hover:text-[var(--error)] hover:bg-[var(--error)]/10 rounded-lg transition-colors"
               title="Reset Pipeline"
             >
-              <svg className="w-4 h-4 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-              <span className="text-[9px] font-bold uppercase tracking-wider">Reset</span>
+              <svg className="w-3.5 md:w-4 h-3.5 md:h-4 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              <span className="text-[8px] md:text-[9px] font-bold uppercase tracking-wider">Reset</span>
             </button>
           )}
         </div>
       </div>
 
       {/* Workspace Tabs (Below Header) */}
-      <div className="w-full bg-[var(--bg-canvas)] border-b border-[var(--border)] px-6 py-2 flex items-center justify-start gap-2 overflow-x-auto relative z-10 shadow-sm pl-[65px]">
+      <div className="w-full bg-[var(--bg-canvas)] border-b border-[var(--border)] px-3 md:px-6 py-2 flex items-center justify-start gap-2 overflow-x-auto relative z-10 shadow-sm md:pl-[65px] pl-3">
         <span className="text-[10px] font-bold text-[var(--text-muted)] mr-2 tracking-widest uppercase">Workspaces:</span>
         {workspaces.map((ws, i) => {
           const imgCount = ws.length;
@@ -415,7 +421,7 @@ export default function Canvas({
       )}
 
       {/* Content area */}
-      <div className="flex-1 overflow-y-auto pl-[65px] pr-8 py-6 relative">
+      <div className="flex-1 overflow-y-auto md:pl-[65px] md:pr-8 md:py-6 pl-3 pr-3 py-4 relative">
         {allJobs.length === 0 ? (
           /* Empty state */
           <div className="h-full flex flex-col items-center justify-center text-center">
@@ -461,15 +467,15 @@ export default function Canvas({
                   Ungrouped ({ungroupedJobs.length})
                 </h3>
                 <div className="flex flex-wrap justify-center gap-4">
-                  {ungroupedJobs.map((job) => (
-                    <div key={job.id} className="w-[180px] flex-shrink-0">
-                      <ImageCard
-                        job={job}
-                        onClick={handleImageClick}
-                        draggable={true}
-                      />
-                    </div>
-                  ))}
+                {ungroupedJobs.map((job) => (
+                  <div key={job.id} className="w-[140px] md:w-[180px] flex-shrink-0">
+                    <ImageCard
+                      job={job}
+                      onClick={handleImageClick}
+                      draggable={true}
+                    />
+                  </div>
+                ))}
                 </div>
               </div>
             )}
@@ -490,7 +496,7 @@ export default function Canvas({
           /* All images grid */
           <div className="flex flex-wrap justify-center gap-4">
             {allJobs.map((job) => (
-              <div key={job.id} className="w-[180px] flex-shrink-0">
+              <div key={job.id} className="w-[140px] md:w-[180px] flex-shrink-0">
                 <ImageCard
                   job={job}
                   onClick={handleImageClick}
@@ -505,7 +511,7 @@ export default function Canvas({
             {ungroupedJobs.length > 0 ? (
               <div className="flex flex-wrap justify-center gap-4">
                 {ungroupedJobs.map((job) => (
-                  <div key={job.id} className="w-[180px] flex-shrink-0">
+                  <div key={job.id} className="w-[140px] md:w-[180px] flex-shrink-0">
                     <ImageCard
                       job={job}
                       onClick={handleImageClick}
@@ -530,7 +536,7 @@ export default function Canvas({
 
       {/* Detail panel (slides in when an image is selected) */}
       {selectedJob && (
-        <div className="absolute top-0 right-0 w-[320px] h-full bg-[var(--bg-secondary)] border-l border-[var(--border)] shadow-2xl overflow-y-auto animate-slide-in z-50">
+        <div className="absolute top-0 right-0 w-full md:w-[320px] max-w-[320px] h-full bg-[var(--bg-secondary)] border-l border-[var(--border)] shadow-2xl overflow-y-auto animate-slide-in z-50">
           <div className="p-5">
             {/* Close button */}
             <div className="flex items-center justify-between mb-4">

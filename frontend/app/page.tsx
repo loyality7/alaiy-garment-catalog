@@ -340,10 +340,10 @@ export default function Home() {
 
       {/* Floating Pipeline Panel Popover */}
       <div
-        className={`absolute top-1/2 -translate-y-1/2 transition-all duration-400 ease-out z-40 ${activeView ? "left-[65px] opacity-100 scale-100" : "left-[50px] opacity-0 scale-95 pointer-events-none"
+        className={`absolute top-1/2 -translate-y-1/2 transition-all duration-400 ease-out z-40 ${activeView ? "md:left-[65px] left-3 opacity-100 scale-100" : "-left-full md:left-[50px] opacity-0 scale-95 pointer-events-none"
           }`}
       >
-        <div className="bg-white/85 backdrop-blur-2xl shadow-[0_24px_48px_rgba(0,0,0,0.12)] border border-white/60 rounded-3xl overflow-hidden h-auto max-h-[85vh] w-[320px]">
+        <div className="bg-white/85 backdrop-blur-2xl shadow-[0_24px_48px_rgba(0,0,0,0.12)] border border-white/60 md:rounded-3xl rounded-2xl overflow-hidden h-auto max-h-[85vh] w-[calc(100vw-24px)] md:w-[320px]">
           <PipelinePanel
             jobs={jobs}
             groups={groups}
