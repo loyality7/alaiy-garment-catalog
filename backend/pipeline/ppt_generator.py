@@ -37,6 +37,8 @@ ACCENT_RED = RGBColor(0xC4, 0x3E, 0x3E)       # Asmara logo red
 LINE_COLOR = RGBColor(0x8A, 0x84, 0x7C)       # Subtle line color
 BODY_BG = RGBColor(0xF5, 0xF0, 0xE8)          # Cream body background
 
+LOGO_PATH = Path(__file__).parent / "logo" / "asmara_group_logo.png"
+
 
 def _add_centered_picture(slide, img_path: str, box_left, box_top, box_width, box_height) -> None:
     """Helper to add an image to a slide while preserving aspect ratio and centering it within a box."""
@@ -123,14 +125,17 @@ def _add_cover_slide(prs: Presentation, total_styles: int) -> None:
     fill.fore_color.rgb = DARK_BG
 
     # Asmara logo text at top left (placeholder since we don't have the logo file)
-    logo_box = slide.shapes.add_textbox(Inches(1.5), Inches(0.4), Inches(2), Inches(0.6))
-    tf = logo_box.text_frame
-    tf.word_wrap = True
-    p = tf.paragraphs[0]
-    p.text = "asmara"
-    p.font.size = Pt(24)
-    p.font.color.rgb = ACCENT_RED
-    p.font.bold = True
+    if LOGO_PATH.exists():
+        _add_centered_picture(slide, str(LOGO_PATH), Inches(1.5), Inches(0.3), Inches(3.0), Inches(1.5))
+    else:
+        logo_box = slide.shapes.add_textbox(Inches(1.5), Inches(0.4), Inches(2), Inches(0.6))
+        tf = logo_box.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.text = "asmara"
+        p.font.size = Pt(24)
+        p.font.color.rgb = ACCENT_RED
+        p.font.bold = True
 
     # Main title: ELEMENTS
     title_box = slide.shapes.add_textbox(Inches(1.5), Inches(2.0), Inches(10), Inches(2.5))
@@ -210,14 +215,14 @@ def _add_style_slide(
 
     # ── Header bar (dark strip at top) ──
     header = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), SLIDE_WIDTH, Inches(0.85)
+        MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), SLIDE_WIDTH, Inches(1.2)
     )
     header.fill.solid()
     header.fill.fore_color.rgb = HEADER_BG
     header.line.fill.background()
 
     # Style number (large, left side)
-    num_box = slide.shapes.add_textbox(Inches(0.4), Inches(0.1), Inches(0.8), Inches(0.7))
+    num_box = slide.shapes.add_textbox(Inches(0.4), Inches(0.25), Inches(0.8), Inches(0.7))
     tf = num_box.text_frame
     tf.vertical_anchor = MSO_ANCHOR.MIDDLE
     p = tf.paragraphs[0]
@@ -229,7 +234,7 @@ def _add_style_slide(
 
     # Vertical separator line
     sep = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(1.3), Inches(0.15), Pt(2), Inches(0.55)
+        MSO_SHAPE.RECTANGLE, Inches(1.3), Inches(0.3), Pt(2), Inches(0.6)
     )
     sep.fill.solid()
     sep.fill.fore_color.rgb = LINE_COLOR
@@ -238,14 +243,28 @@ def _add_style_slide(
     # Style name
     spec_data = group.spec_data or SpecData()
     style_title = group.name.upper() if group.name else f"STYLE {slide_number}"
-    name_box = slide.shapes.add_textbox(Inches(1.6), Inches(0.08), Inches(9.5), Inches(0.45))
+    name_box = slide.shapes.add_textbox(Inches(1.6), Inches(0.25), Inches(8.5), Inches(0.45))
     tf = name_box.text_frame
     p = tf.paragraphs[0]
     p.text = style_title
     p.font.size = Pt(22)
     p.font.color.rgb = CREAM_TEXT
     p.font.bold = True
-    p.font.name = "Arial"
+    p.font.name = "Georgia"
+
+    # Logo in header (top right)
+    if LOGO_PATH.exists():
+        _add_centered_picture(slide, str(LOGO_PATH), Inches(10.0), Inches(0.15), Inches(3.0), Inches(0.9))
+    else:
+        logo_box = slide.shapes.add_textbox(Inches(10.8), Inches(0.2), Inches(2.2), Inches(0.45))
+        tf = logo_box.text_frame
+        tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+        p = tf.paragraphs[0]
+        p.text = "asmara"
+        p.font.size = Pt(14)
+        p.font.color.rgb = ACCENT_RED
+        p.font.bold = True
+        p.alignment = PP_ALIGN.RIGHT
 
     # Subtitle: ref + fabric + GSM
     subtitle_parts = []
@@ -258,17 +277,17 @@ def _add_style_slide(
         subtitle_parts.append(f"{gsm_val} GSM")
 
     subtitle_text = "  ·  ".join(subtitle_parts) if subtitle_parts else ""
-    sub_box = slide.shapes.add_textbox(Inches(1.6), Inches(0.50), Inches(9.5), Inches(0.3))
+    sub_box = slide.shapes.add_textbox(Inches(1.6), Inches(0.7), Inches(9.5), Inches(0.3))
     tf = sub_box.text_frame
     p = tf.paragraphs[0]
     p.text = subtitle_text
     p.font.size = Pt(9)
     p.font.color.rgb = LINE_COLOR
-    p.font.name = "Arial"
+    p.font.name = "Georgia"
 
 
     # ── Image area ──
-    img_top = Inches(1.1)
+    img_top = Inches(1.5)
     img_height = Inches(5.0)
 
     # Front image (left)
@@ -342,13 +361,6 @@ def _add_style_slide(
         y_offset += Inches(0.28)
 
     # ── Footer ──
-    footer = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(0), Inches(7.05), SLIDE_WIDTH, Inches(0.45)
-    )
-    footer.fill.solid()
-    footer.fill.fore_color.rgb = HEADER_BG
-    footer.line.fill.background()
-
     # Company name (left)
     company_box = slide.shapes.add_textbox(Inches(0.5), Inches(7.1), Inches(3), Inches(0.3))
     tf = company_box.text_frame
@@ -367,17 +379,6 @@ def _add_style_slide(
     p.font.color.rgb = LINE_COLOR
     p.alignment = PP_ALIGN.CENTER
     p.font.name = "Arial"
-
-    # Logo at bottom right
-    logo_box = slide.shapes.add_textbox(Inches(10.8), Inches(7.05), Inches(2.2), Inches(0.45))
-    tf = logo_box.text_frame
-    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-    p = tf.paragraphs[0]
-    p.text = "asmara"
-    p.font.size = Pt(14)
-    p.font.color.rgb = ACCENT_RED
-    p.font.bold = True
-    p.alignment = PP_ALIGN.RIGHT
 
 
 def generate_catalog(
