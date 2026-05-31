@@ -390,6 +390,14 @@ async def group_images(jobs: Dict[str, ImageJob], emit_event=None) -> Dict[str, 
     # If a group has 2+ FRONTs, reclassify the lower confidence one.
     from backend.pipeline.classifier import classify_image
     
+    def _is_semantic_match(job1, job2):
+        c1, c2 = job1.classification, job2.classification
+        if not c1 or not c2: return False
+        w1 = set((c1.dominant_color or "").lower().replace("-", " ").split())
+        w2 = set((c2.dominant_color or "").lower().replace("-", " ").split())
+        return len(w1.intersection(w2)) > 0
+    
+    
     for gid, group in list(style_groups.items()):
         front_jobs = [jobs[jid] for jid in group.image_ids if jid in jobs and jobs[jid].image_type == ImageType.FRONT]
         
@@ -403,9 +411,30 @@ async def group_images(jobs: Dict[str, ImageJob], emit_event=None) -> Dict[str, 
                 bad_conf = bad_front.classification.confidence if bad_front.classification else 0
                 
                 if bad_conf > 0.85 and highest_conf > 0.85:
-                    # Both are very confident, they are likely different garments
-                    needs_split = True
-                    continue
+                    # Both are very confident. Let CLIP decide if they are actually the same garment!
+                    from backend.pipeline.clip_embedder import get_embedding, cosine_similarity
+                    emb1 = get_embedding(bad_front.original_path)
+                    emb2 = get_embedding(front_jobs[-1].original_path)
+                    
+                    if emb1 is not None and emb2 is not None:
+                        sim = cosine_similarity(emb1, emb2)
+                        sem_match = _is_semantic_match(bad_front, front_jobs[-1])
+                        if sim > 0.82 and sem_match:
+                            logger.info(f"Pass 1.5: CLIP similarity {sim:.2f} > 0.82 AND semantic match. Forcing {bad_front.filename} to BACK instead of splitting.")
+                            # Force reclassification to BACK without asking Gemini again
+                            bad_front.image_type = ImageType.BACK
+                            if group.front_image_id == bad_front.id:
+                                group.front_image_id = None
+                            if not group.back_image_id:
+                                group.back_image_id = bad_front.id
+                            continue
+                        else:
+                            logger.info(f"Pass 1.5: CLIP sim {sim:.2f}, semantic match {sem_match}. Splitting different garments.")
+                            needs_split = True
+                            continue
+                    else:
+                        needs_split = True
+                        continue
                 
                 logger.info(f"Pass 1.5: Force reclassifying suspicious FRONT: {bad_front.filename}")
                 try:
@@ -449,11 +478,54 @@ async def group_images(jobs: Dict[str, ImageJob], emit_event=None) -> Dict[str, 
                     _add_job_to_group(current_split, j)
                     if is_front: front_count += 1
 
-    # --- PASS 2: Heuristic Fuzzy (Ungrouped Only) ---
+    # --- PASS 2: CLIP Global Magnet / Heuristic Fuzzy (Ungrouped Only) ---
     ungrouped_jobs = {jid: j for jid, j in jobs.items() if not j.style_group}
     if ungrouped_jobs:
-        heuristic_groups, style_counter = _heuristic_group_images(ungrouped_jobs, jobs, style_counter)
-        style_groups.update(heuristic_groups)
+        logger.info(f"Pass 2: Found {len(ungrouped_jobs)} ungrouped jobs. Running CLIP visual match...")
+        from backend.pipeline.clip_embedder import get_embedding, cosine_similarity
+        
+        # We'll pull remaining unassigned to go to heuristic
+        still_ungrouped = {}
+        for jid, job in ungrouped_jobs.items():
+            # Skip spec labels
+            if job.image_type == ImageType.SPEC_LABEL:
+                still_ungrouped[jid] = job
+                continue
+                
+            job_emb = get_embedding(job.original_path)
+            if job_emb is None:
+                still_ungrouped[jid] = job
+                continue
+                
+            best_group_id = None
+            best_score = 0.0
+            
+            # Check against ALL existing groups
+            for gid, group in style_groups.items():
+                for existing_job_id in group.image_ids:
+                    if existing_job_id in jobs:
+                        existing_job = jobs[existing_job_id]
+                        if existing_job.image_type == ImageType.SPEC_LABEL: continue
+                        
+                        existing_emb = get_embedding(existing_job.original_path)
+                        if existing_emb is not None:
+                            score = cosine_similarity(job_emb, existing_emb)
+                            sem_match = _is_semantic_match(job, existing_job)
+                            if score > best_score and sem_match:
+                                best_score = score
+                                best_group_id = gid
+            
+            if best_score > 0.82 and best_group_id:
+                logger.info(f"CLIP Safe Match ({best_score:.2f} + Semantic) -> {job.filename} assigned to {style_groups[best_group_id].name}")
+                _add_job_to_group(style_groups[best_group_id], job)
+            else:
+                still_ungrouped[jid] = job
+                
+        # Pass remaining to fuzzy heuristic matching
+        if still_ungrouped:
+            logger.info(f"Falling back to heuristic for {len(still_ungrouped)} items")
+            heuristic_groups, style_counter = _heuristic_group_images(still_ungrouped, jobs, style_counter)
+            style_groups.update(heuristic_groups)
         
     # Assign spec labels to nearest group
     spec_jobs = [j for j in jobs.values() if j.image_type == ImageType.SPEC_LABEL and not j.style_group]
@@ -462,21 +534,9 @@ async def group_images(jobs: Dict[str, ImageJob], emit_event=None) -> Dict[str, 
     if emit_event:
         emit_event("grouping_pass2_complete", data={"groups": len(style_groups)})
 
-    # --- PASS 3: Vision Confirm Solos ---
-    solo_groups = list(g for g in style_groups.values() if len(g.image_ids) == 1)
-    if solo_groups:
-        logger.info(f"Pass 3: Vision confirming {len(solo_groups)} solo images")
-        await _vision_confirm_solos(solo_groups, jobs, style_groups, emit_event)
-
-    # --- PASS 4: Selective Vision Confirm ---
-    if ENABLE_CONFIRMATION_PASS:
-        # Re-evaluate solos in case Pass 3 left any
-        solo_groups = list(g for g in style_groups.values() if len(g.image_ids) == 1)
-        suspicious_groups = list(g for g in style_groups.values() if _is_suspicious(g, jobs))
-        if suspicious_groups:
-            logger.info(f"Pass 4: Vision confirming {len(suspicious_groups)} suspicious groups")
-            # Cap at max 10 to save tokens
-            await _vision_confirm_groups(suspicious_groups[:10], solo_groups, jobs, style_groups, emit_event)
+    # --- PASS 3 & 4 (Removed) ---
+    # We now strictly rely on Pass 1.5 (CLIP Embedding similarity) and Pass 2 (Heuristics)
+    # to avoid destructive AI vision passes that cost API tokens and cause hallucinated grouping splits.
 
     return style_groups
 
@@ -588,6 +648,17 @@ def _add_job_to_group(group: StyleGroup, job: ImageJob) -> None:
 
     if job.image_type == ImageType.FRONT and not group.front_image_id:
         group.front_image_id = job.id
+        # The FRONT image has the most accurate Gemini classification.
+        # Inherit its name, color, and garment type to fix mislabeled groups (like everything being "Olive Green")
+        if job.classification:
+            if job.classification.style_name:
+                group.name = job.classification.style_name
+            if job.classification.dominant_color:
+                group.dominant_color = job.classification.dominant_color
+            if job.classification.garment_type:
+                group.garment_type = job.classification.garment_type
+            if job.classification.pattern:
+                group.pattern = job.classification.pattern
     elif job.image_type == ImageType.BACK and not group.back_image_id:
         group.back_image_id = job.id
     elif job.image_type == ImageType.DETAIL and not group.detail_image_id:
