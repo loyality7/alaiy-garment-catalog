@@ -147,7 +147,7 @@ uploaded → classifying → classified → processing → cleaned → assigned 
 
 ## Implemented Capabilities
 
-- **Image upload** via drag-drop or file picker, with batch processing (5 files at a time)
+- **Image upload** via drag-drop or file picker, with batch processing
 - **Scans input folder** for existing images and queues them automatically
 - **AI classification** of garment images into FRONT, BACK, DETAIL, and SPEC_LABEL types using Gemini 2.5 Flash / OpenRouter
 - **Spec data extraction** from label images: reference number, fabric composition, GSM, date, remarks
