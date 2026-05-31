@@ -236,7 +236,7 @@ export default function Canvas({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-1 md:gap-3">
+        <div className="flex items-center gap-0.5 md:gap-3">
           <button
             onClick={handleGroup}
             disabled={isGrouping || isProcessing || stats.cleaned === 0}
@@ -341,7 +341,7 @@ export default function Canvas({
               title="Reset Pipeline"
             >
               <svg className="w-3.5 md:w-4 h-3.5 md:h-4 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-              <span className="text-[8px] md:text-[9px] font-bold uppercase tracking-wider">Reset</span>
+              <span className="hidden md:inline text-[8px] md:text-[9px] font-bold uppercase tracking-wider">Reset</span>
             </button>
           )}
         </div>
@@ -364,7 +364,7 @@ export default function Canvas({
                 }`}
             >
               {/* Mini thumbnails */}
-              <div className="flex -space-x-1">
+              <div className="hidden md:flex -space-x-1">
                 {thumbnails.length > 0 ? thumbnails.map((j) => (
                   <div key={j.id} className="w-5 h-5 rounded-full border-2 border-white overflow-hidden bg-[var(--bg-surface)]">
                     <img
@@ -379,7 +379,7 @@ export default function Canvas({
                 )}
               </div>
               <span className="text-inherit">WS {i + 1}</span>
-              {imgCount > 0 && <span className={`text-[9px] ${i === activeWorkspaceIndex ? 'text-white/70' : 'text-[var(--text-muted)]'}`}>{imgCount} imgs · {groupCount} grps</span>}
+              {imgCount > 0 && <span className={`hidden md:inline text-[9px] ${i === activeWorkspaceIndex ? 'text-white/70' : 'text-[var(--text-muted)]'}`}>{imgCount} imgs · {groupCount} grps</span>}
             </button>
           );
         })}
