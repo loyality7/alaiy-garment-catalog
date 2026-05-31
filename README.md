@@ -147,13 +147,14 @@ uploaded → classifying → classified → processing → cleaned → assigned 
 
 - **Image upload** via drag-drop or file picker, with batch processing (5 files at a time)
 - **Scans input folder** for existing images and queues them automatically
-- **AI classification** of garment images into FRONT, BACK, DETAIL, and SPEC_LABEL types using Gemini 2.5 Flash
+- **AI classification** of garment images into FRONT, BACK, DETAIL, and SPEC_LABEL types using Gemini 2.5 Flash / OpenRouter
 - **Spec data extraction** from label images: reference number, fabric composition, GSM, date, remarks
 - **Image processing**: smart cropping, auto-rotation, brightness/contrast correction, resizing (background removal is disabled by default)
-- **Style grouping** using a 4-pass algorithm (timestamp proximity, fuzzy heuristic matching, AI vision confirmation)
+- **Style grouping** using a multi-pass algorithm with **CLIP semantic visual verification** to ensure high-accuracy garment matching
 - **Drag-and-drop** manual correction of image-to-group assignments
 - **Classification override** via detail panel
-- **PowerPoint catalog generation** with cover slide, per-slide layouts (front/back/detail + specs), matching a reference PPT layout
+- **Triage Mode** to easily filter and review problematic groups
+- **PowerPoint catalog generation** with cover slide, per-slide layouts (front/back/detail + specs), matching a reference PPT layout with embedded logos and Georgia typography
 - **Real-time pipeline visibility** via WebSocket: per-image status (uploaded → classifying → classified → processing → cleaned → assigned → ppt_ready)
 - **Workspace partitioning** by upload time batches (60-second gap threshold)
 - **Undo/redo** for drag-and-drop moves (Ctrl+Z / Ctrl+Y)
@@ -173,8 +174,9 @@ uploaded → classifying → classified → processing → cleaned → assigned 
 | `pipeline/classifier.py` | Sends image to Gemini API with a detailed classification prompt. Retries up to 3 times. Resizes images to max 1024px for API efficiency. Parses JSON response into `ClassificationResult`. |
 | `pipeline/image_processor.py` | 5-step processing: (1) background removal via rembg (disabled by default), (2) auto-rotation of landscape garment images, (3) smart cropping via OpenCV contour detection, (4) brightness/contrast histogram correction, (5) resize (configurable via `MAX_IMAGE_DIM`, default 1000px). |
 | `pipeline/ocr.py` | Sends spec label images to AI with extraction prompt. Higher resolution (1536px max). Returns `SpecData` with ref_number, fabric_composition, gsm, date, remarks. |
-| `pipeline/grouper.py` | 4-pass grouping: Pass 1 (Timestamp Gap), Pass 1.5 (Split overloaded), Pass 2 (Heuristic fuzzy), Pass 3 (AI vision solo confirmation), Pass 4 (AI vision suspicious group confirmation). |
-| `pipeline/ppt_generator.py` | Creates PowerPoint using python-pptx. Loads reference PPT for dimensions if available. Generates cover slide + per-style slides with dark header, cream body, front/back/detail images in framed positions, spec data panel, and footer. |
+| `pipeline/clip_embedder.py` | Generates semantic embeddings for images using HuggingFace's CLIP model (via PyTorch) to determine visual similarity between garments. |
+| `pipeline/grouper.py` | Multi-pass grouping: Pass 1 (Timestamp Gap), Pass 1.5 (CLIP similarity splits), Pass 2 (Heuristic fuzzy matching). Replaced generative AI grouping with deterministic CLIP embeddings for stability. |
+| `pipeline/ppt_generator.py` | Creates PowerPoint using python-pptx. Generates cover slide + per-style slides with dark header (Georgia font), cream body, front/back/detail images in framed positions, spec data panel, and embedded Asmara logo image. |
 | `utils/ai_client.py` | Unified AI vision client supporting Gemini (primary) and OpenRouter (fallback). Handles provider selection, retry logic, and response parsing. |
 | `utils/file_utils.py` | File path and I/O helpers: directory management, base64 encoding, file saving, output organization into `Processed_Garments/`. |
 
@@ -183,12 +185,12 @@ uploaded → classifying → classified → processing → cleaned → assigned 
 | Component | File | Role |
 |-----------|------|------|
 | Page | `page.tsx` | Root component managing application state (jobs, groups), WebSocket message handling, workspace partitioning, undo/redo history |
-| Canvas | `Canvas.jsx` | Main workspace with three view modes (Groups, All Images, Ungrouped), action buttons (Scan, Group, Generate, Download, Reset) |
+| Canvas | `Canvas.jsx` | Main workspace with three view modes (Groups, All Images, Ungrouped), action buttons (Group, Generate, Download) |
 | StyleGroup | `StyleGroup.jsx` | Container for one garment style, group metadata, spec data summary, image cards, drop target for drag-and-drop |
 | ImageCard | `ImageCard.jsx` | Single image thumbnail with type badge, confidence score, status badge, classification metadata, expandable spec data, custom drag ghost |
-| UploadZone | `UploadZone.jsx` | Drag-drop and file picker upload with per-batch (5 files) progress display |
+| UploadZone | `UploadZone.jsx` | Drag-drop and file picker upload with per-batch (5 files) progress display and Local Folder Scan button |
 | PipelinePanel | `PipelinePanel.jsx` | Left sidebar showing pipeline stage counts, progress bar, style group count |
-| FloatingToolbar | `FloatingToolbar.jsx` | Vertical toolbar with buttons to toggle upload panel and stats panel |
+| FloatingToolbar | `FloatingToolbar.jsx` | Vertical toolbar with buttons to toggle upload panel, stats panel, and Triage Mode filter |
 | useWebSocket | `hooks/useWebSocket.js` | Auto-connecting WebSocket with 3-second reconnect and 30-second ping keepalive |
 | api.js | `utils/api.js` | Functions for all REST endpoints with dynamic base URL resolution |
 
@@ -196,5 +198,6 @@ uploaded → classifying → classified → processing → cleaned → assigned 
 
 ## Current State & Known Issues
 
-- The "asmara" logo in the PowerPoint is rendered as styled text (no logo image file is provided)
+- The core pipeline uses Docker with Celery workers for heavy visual background processing
+- Next.js Turbopack provides hot-reloading for UI components
 - No automated test suite is present
