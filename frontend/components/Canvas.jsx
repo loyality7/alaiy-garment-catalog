@@ -34,6 +34,19 @@ export default function Canvas({
   const [selectedWorkspacesToGenerate, setSelectedWorkspacesToGenerate] = useState(new Set([0]));
   const [overrideForm, setOverrideForm] = useState(null);
   const [previewSlides, setPreviewSlides] = useState(null);
+  const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
+  
+  // Helper to determine if a group needs review
+  const getGroupWarning = (group, jobs) => {
+    const groupJobs = (group.image_ids || []).map(id => jobs[id]).filter(Boolean);
+    const fronts = groupJobs.filter(j => j.image_type === "FRONT").length;
+    const backs = groupJobs.filter(j => j.image_type === "BACK").length;
+    
+    if (fronts === 0) return "border-red-500 border-2";
+    if (groupJobs.length === 1) return "border-yellow-500 border-2";
+    if (fronts > 1 || backs > 1) return "border-orange-500 border-2";
+    return "";
+  };
   
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setOverrideForm(null); }, [selectedJob?.id]);
@@ -117,13 +130,6 @@ export default function Canvas({
     }
   };
 
-  const handleScan = async () => {
-    setIsScanning(true);
-    try { await scanInputFolder(); }
-    catch (err) { console.error("Scan error:", err); }
-    finally { setTimeout(() => setIsScanning(false), 2000); }
-  };
-
   const handleDownload = () => {
     window.open(getDownloadUrl(), "_blank");
   };
@@ -138,10 +144,14 @@ export default function Canvas({
   // Sort groups by style number
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const sortedGroups = useMemo(() => {
-    return Object.values(groups || {}).sort(
+    let sorted = Object.values(groups || {}).sort(
       (a, b) => (a.style_number || 0) - (b.style_number || 0)
     );
-  }, [groups]);
+    if (showFlaggedOnly) {
+      sorted = sorted.filter(g => getGroupWarning(g, jobs) !== "");
+    }
+    return sorted;
+  }, [groups, showFlaggedOnly, jobs]);
 
   // Find ungrouped images
   const ungroupedJobs = useMemo(() => {
@@ -226,25 +236,17 @@ export default function Canvas({
         {/* Action Buttons */}
         <div className="flex items-center gap-3">
           <button
-            onClick={handleScan}
-            disabled={isScanning || isProcessing}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md border border-[var(--border)] transition-colors flex items-center gap-1.5 shadow-sm ${isScanning || isProcessing ? "bg-black/5 text-black/40 cursor-not-allowed opacity-50" : "bg-white text-black hover:border-[var(--accent)] hover:text-[var(--accent)]"}`}
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
-            {isScanning ? "Scanning..." : isProcessing ? "Processing..." : "Scan"}
-          </button>
-          <button
             onClick={handleGroup}
-            disabled={isGrouping || stats.cleaned === 0}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md border transition-all disabled:opacity-50 flex items-center gap-1.5 relative ${stats.cleaned > 0
+            disabled={isGrouping || isProcessing || stats.cleaned === 0}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md border transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 relative ${stats.cleaned > 0 && !isProcessing
                 ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)] shadow-[0_0_12px_rgba(236,72,153,0.4)]"
-                : "border-[var(--border)] bg-white text-black hover:border-[var(--accent)] hover:text-[var(--accent)] shadow-sm"
+                : "border-[var(--border)] bg-white text-black shadow-sm"
               }`}
           >
-            {stats.cleaned > 0 && (
+            {stats.cleaned > 0 && !isProcessing && (
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[var(--accent)] rounded-full animate-ping" />
             )}
-            {stats.cleaned > 0 && (
+            {stats.cleaned > 0 && !isProcessing && (
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[var(--accent)] rounded-full" />
             )}
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
@@ -258,6 +260,8 @@ export default function Canvas({
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
             Preview
           </button>
+
+          
           <div className="relative flex items-center">
             <button
               onClick={handleGenerateClick}
@@ -431,7 +435,12 @@ export default function Canvas({
           <div>
             {/* Style groups */}
             {sortedGroups.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 items-start mb-8 w-full">
+              <div className={`gap-5 items-start mb-8 w-full ${
+                sortedGroups.length === 1 ? 'grid grid-cols-1 max-w-[400px] mx-auto' :
+                sortedGroups.length === 2 ? 'grid grid-cols-1 md:grid-cols-2 max-w-[800px] mx-auto' :
+                sortedGroups.length === 3 ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-[1200px] mx-auto' :
+                'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+              }`}>
                 {sortedGroups.map((group) => (
                   <div key={group.id} className="w-full">
                     <StyleGroup
