@@ -336,43 +336,52 @@ async def group_images(jobs: Dict[str, ImageJob], emit_event=None) -> Dict[str, 
     style_groups: Dict[str, StyleGroup] = {}
     style_counter = 0
 
-    # --- PASS 1: Timestamp Gap ---
-    # Only run Pass 1 if we actually detect timestamps
+    # --- PASS 1: Timestamp Gap (Isolated by Workspace) ---
     has_timestamps = any(_extract_timestamp(j.filename) > 0 for j in jobs.values())
     if has_timestamps:
-        sorted_jobs = sorted(jobs.values(), key=lambda j: _extract_timestamp(j.filename))
-        current_group: Optional[StyleGroup] = None
-        last_timestamp = -1
-
-        for job in sorted_jobs:
-            # Skip spec labels in Pass 1 so they don't form their own groups
-            if job.image_type == ImageType.SPEC_LABEL:
-                continue
-
-            ts = _extract_timestamp(job.filename)
-            if ts == 0:
-                continue  # Skip files without timestamps in Pass 1
-                
-            is_new_batch = False
-            if not current_group:
-                is_new_batch = True
-            elif last_timestamp > 0 and (ts - last_timestamp) > BATCH_GAP_THRESHOLD:
-                is_new_batch = True
-                
-            if is_new_batch:
-                style_counter += 1
-                name = job.classification.style_name if job.classification else f"Style {style_counter}"
-                current_group = StyleGroup(
-                    name=name or f"Style {style_counter}",
-                    style_number=style_counter,
-                    dominant_color=job.classification.dominant_color if job.classification else None,
-                    garment_type=job.classification.garment_type if job.classification else None,
-                    pattern=job.classification.pattern if job.classification else None
-                )
-                style_groups[current_group.id] = current_group
-
-            _add_job_to_group(current_group, job)
-            last_timestamp = ts
+        # Group jobs by workspace_id
+        workspace_buckets: Dict[str, List[ImageJob]] = {}
+        for job in jobs.values():
+            wid = job.workspace_id or "default"
+            if wid not in workspace_buckets:
+                workspace_buckets[wid] = []
+            workspace_buckets[wid].append(job)
+            
+        for wid, ws_jobs in workspace_buckets.items():
+            sorted_jobs = sorted(ws_jobs, key=lambda j: _extract_timestamp(j.filename))
+            current_group: Optional[StyleGroup] = None
+            last_timestamp = -1
+    
+            for job in sorted_jobs:
+                # Skip spec labels in Pass 1 so they don't form their own groups
+                if job.image_type == ImageType.SPEC_LABEL:
+                    continue
+    
+                ts = _extract_timestamp(job.filename)
+                if ts == 0:
+                    continue  # Skip files without timestamps in Pass 1
+                    
+                is_new_batch = False
+                if not current_group:
+                    is_new_batch = True
+                elif last_timestamp > 0 and (ts - last_timestamp) > BATCH_GAP_THRESHOLD:
+                    is_new_batch = True
+                    
+                if is_new_batch:
+                    style_counter += 1
+                    name = job.classification.style_name if job.classification else f"Style {style_counter}"
+                    current_group = StyleGroup(
+                        name=name or f"Style {style_counter}",
+                        style_number=style_counter,
+                        dominant_color=job.classification.dominant_color if job.classification else None,
+                        garment_type=job.classification.garment_type if job.classification else None,
+                        pattern=job.classification.pattern if job.classification else None,
+                        workspace_id=wid
+                    )
+                    style_groups[current_group.id] = current_group
+    
+                _add_job_to_group(current_group, job)
+                last_timestamp = ts
             
     if emit_event:
         emit_event("grouping_pass1_complete", data={"groups": len(style_groups)})
@@ -570,6 +579,12 @@ def _add_job_to_group(group: StyleGroup, job: ImageJob) -> None:
     """Add a job to a style group, assigning to the correct slot."""
     group.image_ids.append(job.id)
     job.style_group = group.id
+    
+    # Global Magnet Teleportation: 
+    # If the job was pulled from a different workspace, update its workspace_id
+    # so it physically moves in the UI.
+    if hasattr(group, "workspace_id") and group.workspace_id != "default":
+        job.workspace_id = group.workspace_id
 
     if job.image_type == ImageType.FRONT and not group.front_image_id:
         group.front_image_id = job.id
