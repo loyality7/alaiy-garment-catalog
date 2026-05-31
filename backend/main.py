@@ -136,8 +136,12 @@ def get_sync_redis() -> sync_redis.Redis:
 
 # ── REST Endpoints ──
 
+from fastapi import Form
+
 @app.post("/upload")
-async def upload_images(files: List[UploadFile] = File(...)):
+async def upload_images(
+    files: List[UploadFile] = File(...)
+):
     """
     Upload one or more garment images.
     Creates a job per image and pushes each to the Celery processing queue.
@@ -146,11 +150,16 @@ async def upload_images(files: List[UploadFile] = File(...)):
 
     r = get_sync_redis()
     created_jobs = []
+    
+    # Sort files by filename to keep sequences together
+    files.sort(key=lambda f: f.filename or "")
 
-    for file in files:
+    for i, file in enumerate(files):
         # Validate file type
         if not file.content_type or not file.content_type.startswith("image/"):
             continue
+
+        workspace_id = "default"
 
         # Read file
         content = await file.read()
@@ -203,6 +212,7 @@ async def upload_images(files: List[UploadFile] = File(...)):
             "spec_data": None,
             "processed_path": None,
             "error": None,
+            "workspace_id": workspace_id,
             "created_at": time.time(),
             "updated_at": time.time(),
         }
@@ -272,43 +282,51 @@ async def scan_input_folder():
     # Supported image extensions
     valid_exts = {".jpg", ".jpeg", ".png", ".webp"}
     
+    valid_files = []
     for file_path in input_dir.iterdir():
         if file_path.is_file() and file_path.suffix.lower() in valid_exts:
             resolved_path = str(file_path.resolve())
             if resolved_path not in existing_paths:
-                # Create job
-                job_id = str(uuid.uuid4())
-                job = {
-                    "id": job_id,
-                    "filename": file_path.name,
-                    "original_path": str(file_path),
-                    "status": "uploaded",
-                    "image_type": "UNKNOWN",
-                    "classification": None,
-                    "style_group": None,
-                    "spec_data": None,
-                    "processed_path": None,
-                    "error": None,
-                    "created_at": time.time(),
-                    "updated_at": time.time(),
-                }
+                valid_files.append(file_path)
                 
-                r.hset("jobs", job_id, json.dumps(job))
+    valid_files.sort(key=lambda f: f.name)
+    for i, file_path in enumerate(valid_files):
+        workspace_id = "default"
+        
+        # Create job
+        job_id = str(uuid.uuid4())
+        job = {
+            "id": job_id,
+            "filename": file_path.name,
+            "original_path": str(file_path),
+            "status": "uploaded",
+            "image_type": "UNKNOWN",
+            "classification": None,
+            "style_group": None,
+            "spec_data": None,
+            "processed_path": None,
+            "error": None,
+            "workspace_id": workspace_id,
+            "created_at": time.time(),
+            "updated_at": time.time(),
+        }
                 
-                # Push to Celery
-                process_image.delay(job_id, str(file_path))
-                
-                # Publish individual websocket event so UI updates instantly
-                event = {
-                    "event": "job_update",
-                    "job_id": job_id,
-                    "data": job,
-                    "timestamp": time.time(),
-                }
-                r.publish("ws_events", json.dumps(event))
-                
-                created_jobs.append(job)
-                logger.info(f"Scanned and queued local image: {file_path.name} → job {job_id}")
+        r.hset("jobs", job_id, json.dumps(job))
+        
+        # Push to Celery
+        process_image.delay(job_id, str(file_path))
+        
+        # Publish individual websocket event so UI updates instantly
+        event = {
+            "event": "job_update",
+            "job_id": job_id,
+            "data": job,
+            "timestamp": time.time(),
+        }
+        r.publish("ws_events", json.dumps(event))
+        
+        created_jobs.append(job)
+        logger.info(f"Scanned and queued local image: {file_path.name} → job {job_id}")
 
     return {
         "message": f"Scanned folder and queued {len(created_jobs)} new images",
@@ -656,6 +674,10 @@ async def move_image_to_group(job_id: str, target_group_id: str):
     target_group = groups[target_group_id]
     if job_id not in target_group["image_ids"]:
         target_group["image_ids"].append(job_id)
+
+    # Teleport to target group's workspace
+    if "workspace_id" in target_group and target_group["workspace_id"] != "default":
+        job["workspace_id"] = target_group["workspace_id"]
 
     # Auto-assign to correct slot based on image type
     img_type = job.get("image_type", "UNKNOWN")
