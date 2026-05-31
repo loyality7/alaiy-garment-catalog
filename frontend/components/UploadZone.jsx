@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { uploadFiles, startProcessing } from "../utils/api";
+import { uploadFiles, scanInputFolder, startProcessing } from "../utils/api";
 
 /**
  * UploadZone — drag-drop or file picker for uploading garment images.
@@ -14,6 +14,7 @@ const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
 export default function UploadZone({ onUploadComplete }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   const [uploadProgress, setUploadProgress] = useState([]);
   const fileInputRef = useRef(null);
 
@@ -208,6 +209,26 @@ export default function UploadZone({ onUploadComplete }) {
           ))}
         </div>
       )}
+      
+      {/* Scan Button section */}
+      <div className="mt-4 pt-4 border-t border-[var(--border)]">
+        <button
+          onClick={async () => {
+            setIsScanning(true);
+            try { await scanInputFolder(); }
+            catch (err) { console.error("Scan error:", err); }
+            finally { 
+              setTimeout(() => setIsScanning(false), 2000); 
+              if (onUploadComplete) onUploadComplete();
+            }
+          }}
+          disabled={isScanning || isUploading}
+          className={`w-full px-3 py-2 text-xs font-semibold rounded-md border border-[var(--border)] transition-colors flex justify-center items-center gap-1.5 shadow-sm ${isScanning || isUploading ? "bg-black/5 text-black/40 cursor-not-allowed opacity-50" : "bg-white text-black hover:border-[var(--accent)] hover:text-[var(--accent)]"}`}
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+          {isScanning ? "Scanning..." : "Scan Local Input Folder"}
+        </button>
+      </div>
     </div>
   );
 }
