@@ -37,6 +37,7 @@ export default function Home() {
   const [groups, setGroups] = useState<Record<string, Group>>({});
   const [showReadyToast, setShowReadyToast] = useState(false);
   const [prevUnfinishedCount, setPrevUnfinishedCount] = useState(0);
+  const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
 
   // Handle incoming WebSocket messages (now batched)
   const handleMessage = useCallback((messages: any[]) => {
@@ -333,6 +334,8 @@ export default function Home() {
         onTogglePanel={handleTogglePanel}
         activeView={activeView}
         isProcessing={isProcessing}
+        showFlaggedOnly={showFlaggedOnly}
+        onToggleFlagged={() => setShowFlaggedOnly(!showFlaggedOnly)}
       />
 
       {/* Floating Pipeline Panel Popover */}
@@ -365,6 +368,7 @@ export default function Home() {
           activeWorkspaceIndex={activeWorkspaceIndex}
           onWorkspaceChange={setActiveWorkspaceIndex}
           onAddWorkspace={() => setManualWorkspaceCount(c => c + 1)}
+          showFlaggedOnly={showFlaggedOnly}
         />
       </div>
     </div>
