@@ -669,6 +669,8 @@ async def move_image_to_group(job_id: str, target_group_id: str):
             for slot in ["front_image_id", "back_image_id", "detail_image_id", "spec_label_id"]:
                 if old_group.get(slot) == job_id:
                     old_group[slot] = None
+                    if slot == "spec_label_id":
+                        old_group["spec_data"] = None
 
     # Add to new group
     target_group = groups[target_group_id]
@@ -690,6 +692,8 @@ async def move_image_to_group(job_id: str, target_group_id: str):
     slot = slot_map.get(img_type)
     if slot and not target_group.get(slot):
         target_group[slot] = job_id
+        if img_type == "SPEC_LABEL" and job.get("spec_data"):
+            target_group["spec_data"] = job["spec_data"]
 
     # Update job
     job["style_group"] = target_group_id
