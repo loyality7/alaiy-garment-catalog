@@ -68,15 +68,20 @@ def get_latest_catalog_output_path() -> Path:
     base_name = "Catalog"
     ext = ".pptx"
     
-    # Default path if none exists
-    latest = out_dir / f"{base_name}_v1{ext}"
-    if not latest.exists() and (out_dir / f"{base_name}{ext}").exists():
-        return out_dir / f"{base_name}{ext}"
-        
-    counter = 1
-    while (out_dir / f"{base_name}_v{counter}{ext}").exists():
-        latest = out_dir / f"{base_name}_v{counter}{ext}"
-        counter += 1
+    import re
+    max_v = 0
+    latest = out_dir / f"{base_name}{ext}"
+    
+    for f in out_dir.glob(f"{base_name}_v*{ext}"):
+        match = re.search(r'_v(\d+)\.pptx$', f.name)
+        if match:
+            v = int(match.group(1))
+            if v > max_v:
+                max_v = v
+                latest = f
+                
+    if max_v == 0 and not latest.exists():
+        latest = out_dir / f"{base_name}_v1{ext}"
         
     return latest
 
