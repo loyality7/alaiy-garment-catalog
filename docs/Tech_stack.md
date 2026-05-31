@@ -13,6 +13,8 @@
 | Backend | Celery | 5.4 | Distributed task queue |
 | Backend | Redis | 7 | State store, broker, pub/sub |
 | Backend | Pillow | 10.4 | Image open/save/resize/enhance |
+| Backend | PyTorch | 2.5 | Tensor ops and neural network execution |
+| Backend | Transformers | 4.47 | HuggingFace models for CLIP embeddings |
 | Backend | OpenCV | 4.10 | Contour detection, cropping |
 | Backend | rembg | 2.0 | Background removal (U²Net) |
 | Backend | python-pptx | 1.0 | PowerPoint generation |
@@ -48,6 +50,7 @@
 | python-dotenv | 1.0.1 | Env file loader | `main.py`, `file_utils.py` |
 | aiofiles | 24.1.0 | Async file I/O | Listed in requirements, not used in code |
 | websockets | 12.0 | WebSocket support | Required by FastAPI's WebSocket implementation |
+| torch / transformers | 2.5/4.47 | Model loading & inference | `clip_embedder.py` — runs HuggingFace CLIP |
 
 ## Image Processing
 
@@ -66,8 +69,7 @@ All routing via `ai_client.py` — tries Gemini, falls back to OpenRouter.
 |-------------|--------|-------------|-------------|
 | Image classification | `pipeline/classifier.py` | Determines FRONT/BACK/DETAIL/SPEC_LABEL with confidence, color, garment type, pattern, style name | 80-line detailed prompt with type rules and common mistakes |
 | Spec label OCR | `pipeline/ocr.py` | Reads structured data from label images: ref_number, fabric_composition, gsm, date, remarks | Structured extraction prompt |
-| Grouping Pass 3 | `pipeline/grouper.py:174-228` | Vision-based verification of single-image groups against filename neighbors | Grid comparison prompt |
-| Grouping Pass 4 | `pipeline/grouper.py:254-314` | Vision-based verification of suspicious groups for confirmation/splitting | Conflict resolution prompt |
+| Semantic Grouping | `pipeline/clip_embedder.py` | Generates semantic embeddings for images to group visually identical garments, preventing AI hallucination during grouping | Deterministic embedding comparison (cosine similarity) |
 
 **Provider configuration:**
 - Primary: `GEMINI_MODEL=gemini-2.5-flash` via Google Gemini API
@@ -122,3 +124,4 @@ Provides access to multiple models through a single API. Used as backup when Gem
 | Next.js | React framework with SSR, file routing, API rewrites for backend proxying |
 | TailwindCSS | Utility-first CSS with rapid prototyping and consistent design tokens |
 | Docker Compose | Single-command orchestration for multi-service architecture |
+| HuggingFace Transformers | Used to run the CLIP model locally for deterministic, highly accurate visual comparisons without API costs |

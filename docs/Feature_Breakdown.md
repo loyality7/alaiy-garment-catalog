@@ -160,10 +160,8 @@
 | Pass | Method | What It Does |
 |------|--------|-------------|
 | 1 | Timestamp gap | Images sorted by filename timestamp. Groups formed when gap > 60 seconds. |
-| 1.5 | Split overloaded | Groups with multiple FRONTs or BACKs split into separate groups. |
+| 1.5 | CLIP Similarity Splits | Large/overloaded groups are verified with CLIP embeddings. Images with low cosine similarity to the group average are split into new groups. |
 | 2 | Heuristic fuzzy | Ungrouped images matched via scoring (color similarity, garment type matching, pattern similarity, filename proximity). Minimum threshold: 1.0 for new groups, 0.4 for low-confidence. |
-| 3 | AI vision solos | Solo (single-image) groups sent to AI with neighbor grid to confirm assignment. |
-| 4 | AI vision suspicious | Groups with suspicious characteristics (multiple garment types, duplicate FRONTs) sent to AI for confirmation/splitting. |
 
 **Matching criteria:**
 - Color: Fuzzy similarity > 0.7 or shared base terms (after removing modifiers)
@@ -175,10 +173,8 @@
 **Outputs:** Dict of `StyleGroup` objects with assigned image IDs and slot references
 
 **Limitations:**
-- AI confirmation passes cost additional API calls
-- `ENABLE_CONFIRMATION_PASS` is on by default; Pass 4 is capped at 10 groups to limit token usage
-- SPEC_LABEL images are assigned to nearest group by filename proximity (may be incorrect)
-- `BATCH_GAP_THRESHOLD` is hardcoded to 60 seconds via env var
+- SPEC_LABEL images are assigned to nearest group by filename proximity initially (can be corrected via drag-and-drop, which correctly propagates the spec metadata).
+- `BATCH_GAP_THRESHOLD` is hardcoded to 60 seconds via env var.
 
 ---
 
@@ -247,10 +243,10 @@
 - `backend/utils/file_utils.py:158-199` — `organize_output_files()`
 
 **Slide layout (per style):**
-- Dark header bar: style number (large), style name, subtitle (ref + fabric + GSM)
+- Dark header bar: style number (large), style name, subtitle (ref + fabric + GSM), and embedded Asmara logo (Georgia font)
 - Cream body: FRONT image (left, framed), BACK image (center, framed), DETAIL image (top right)
 - Spec data panel (right, below detail): REF, CONTENT, GSM, REMARKS, DATE
-- Footer: company name, page number, "asmara" logo (text)
+- Footer: company name, page number
 
 **Cover slide:** Dark background with "ELEMENTS" title, "COLLECTION — SS26" subtitle, company info, style count.
 
@@ -266,7 +262,6 @@
 **Outputs:** PPTX file at `output/Catalog.pptx`; organized files in `output/Processed_Garments/`
 
 **Limitations:**
-- Logo is text ("asmara") rendered with red styling; no actual logo image file included
 - Reference PPT is optional; if missing, default 13.333×7.5 inch dimensions are used
 - Spec data panel may be empty if no spec label was assigned to the group
 
